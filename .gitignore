@@ -1,0 +1,28 @@
+build/
+dist/
+*.spec
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.log
+docs/*.tmp
+.DS_Store
+Thumbs.db
+
+release/
+*.zip
+
+# 打印引擎（GPLv3 独立程序，用 tools/fetch_print_engine.py 取）
+assets/print/*.exe
+assets/print/*-settings.txt
+
+# 本机运行数据
+*.bak
+shelf.json
+
+# 宣传片工程：只留脚本，成片/切片/配音/帧序列一律不入库
+/promo/*
+!/promo/*.py
+!/promo/*.sh
+!/promo/*.ps1

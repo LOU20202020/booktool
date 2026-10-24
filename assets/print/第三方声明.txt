@@ -1,0 +1,6 @@
+SumatraPDF（SumatraPDF.exe）
+版本：3.5.2 (64-bit)
+版权：Copyright (C) 2006-2023 Krzysztof Kowalczyk and contributors
+许可：GNU General Public License v3（GPL-3.0）
+用途：本程序仅以命令行方式调用它把 PDF 送到打印机，不修改、不链接、不内嵌其代码。
+源码与许可：https://www.sumatrapdfreader.org/  /  https://github.com/sumatrapdfreader/sumatrapdf
