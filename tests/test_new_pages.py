@@ -17,7 +17,8 @@ import tempfile
 import time
 
 TMP = tempfile.mkdtemp(prefix="btwin-")
-os.environ["LOCALAPPDATA"] = TMP          # 书架 / 缩略图 / 日志都落临时目录，不污染真实状态
+os.environ["LOCALAPPDATA"] = TMP
+os.environ["BOOKTOOL_SETTINGS"] = "BookToolTest"   # 不读你真实设置里的书脊厚度          # 书架 / 缩略图 / 日志都落临时目录，不污染真实状态
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pymupdf
@@ -219,6 +220,118 @@ try:
     print("  打印机:", printers or "（这台机没装打印机）")
 except Exception as e:
     print("  列打印机失败:", e)
+
+print("\n=== 9.5) 书脊：默认 12.5mm、字号不许超出书脊宽度 ===")
+w.goto(w.page_index["cover"])
+APP.processEvents()
+cover_page = w.pages[w.page_index["cover"]]
+check(float(cover_page.spine.value()) == 12.5, "默认厚度 = 12.5mm",
+      str(cover_page.spine.value()))
+w_mm, h_mm = int(cover_page.w.value()), int(cover_page.h.value())
+want_idx = 0 if (w_mm, h_mm) == (105, 148) else 1
+check(cover_page.preset.index() == want_idx, "开本选中项和实际宽高一致",
+      f"{w_mm}×{h_mm} / 选中 #{cover_page.preset.index()}")
+check("25pt" in cover_page.spine_note.text(), "提示写明 12.5mm 最多 25pt",
+      cover_page.spine_note.text())
+cover_page.spine_edit.setText("忍者物语 第一卷")
+APP.processEvents()
+cover_page.pages_count.set_value(400)          # 老版本会据此改厚度
+cover_page.paper_gsm.setCurrentIndex(2)
+APP.processEvents()
+spin(lambda: False, timeout=0.3)
+check(float(cover_page.spine.value()) == 12.5, "改页数/纸张不再改厚度",
+      str(cover_page.spine.value()))
+check(cover_page.spine_edit.text() == "忍者物语 第一卷", "有厚度时书脊文字照常印",
+      repr(cover_page.spine_edit.text()))
+
+# 字号超宽：3mm 的脊最多 6pt，界面直接把 40pt 压回来
+cover_page.spine_pt.set_value(40)
+APP.processEvents()
+spin(lambda: False, timeout=0.3)
+check(float(cover_page.spine_pt.value()) <= 25.0, "12.5mm 的书脊字号不超过 25pt",
+      str(cover_page.spine_pt.value()))
+cover_page.spine.set_value(3)
+APP.processEvents()
+spin(lambda: False, timeout=0.3)
+check(float(cover_page.spine_pt.value()) == 6.0, "厚 3mm 时字号压到 6pt",
+      str(cover_page.spine_pt.value()))
+check("6pt" in cover_page.spine_note.text(), "提示写明 3mm 最多 6pt",
+      cover_page.spine_note.text())
+
+# 渲染层也拦一道（不靠界面）
+from core import cover as cover_core
+img = cover_core.render_cover(148, 210, 3, spine_text="忍者物语", spine_pt=40,
+                              dpi=120, vertical=True)
+check(img.info.get("spine_pt_clamped") is True, "渲染时把超宽字号压下来",
+      f"实际 {img.info.get('spine_pt')}pt")
+check(float(img.info.get("spine_pt") or 0) <= 6.2, "压下来的字号符合 3mm 书脊",
+      str(img.info.get("spine_pt")))
+img2 = cover_core.render_cover(148, 210, 3, spine_text="忍者物语", spine_pt=40,
+                               dpi=120, vertical=False)
+check(float(img2.info.get("spine_pt") or 0) <= 6.2, "横排书脊同样受限制",
+      str(img2.info.get("spine_pt")))
+
+# 厚度归 0 → 不印书脊文字（原有行为保留）
+cover_page.spine.set_value(0)
+APP.processEvents()
+spin(lambda: False, timeout=0.3)
+check(cover_page.spine_edit.text() == "\u200b", "厚度 0 时书脊文字不印",
+      repr(cover_page.spine_edit.text()))
+
+print("\n=== 10) 打印计划 + 清理中间产物 ===")
+from core import printplan
+from core.shelf import cleanup as CLEAN
+
+# 生产线 on_show 会按成品算一份计划写进 bookshelf
+w.goto(w.page_index["pipeline"])
+pipe.set_project(p.id)
+pipe.on_show()
+APP.processEvents()
+p7 = shelf.store.load().by_id(p.id)
+plan = p7.print_plan or {}
+check(bool(plan) and int(plan.get("sheets") or 0) > 0,
+      "打印计划已写进这本书", printplan.summary(plan))
+check(len(plan.get("signatures") or []) >= 1,
+      "计划里有帖明细", f"{len(plan.get('signatures') or [])} 帖")
+if plan.get("signatures"):
+    check(plan["sheets"] == sum(s["sheets"] for s in plan["signatures"]),
+          "帖张数加起来 = 总张数", f"{plan['sheets']}")
+check(not printplan.is_stale(plan, p7), "刚算的计划不算过期")
+
+# 清理：先验证不删的东西
+p7.final = layout_path
+items_f = CLEAN.candidates(p7, keep_body=True)
+check(all(os.path.abspath(i.path) != os.path.abspath(layout_path) for i in items_f),
+      "定稿不参与清理")
+if p7.items:
+    p7.items[0].manual = True
+    manual_path = os.path.abspath(p7.items[0].path)
+    items_f2 = CLEAN.candidates(p7, keep_body=True)
+    check(all(os.path.abspath(i.path) != manual_path for i in items_f2),
+          "手动加入的不参与清理")
+    p7.items[0].manual = False
+p7.final = None
+check(not any(i.kind == "body" for i in CLEAN.candidates(p7, keep_body=True)),
+      "默认不把正文算进清理清单")
+check(any(i.kind == "body" for i in CLEAN.candidates(p7, keep_body=False)),
+      "取消勾选后正文才可清理")
+
+items = CLEAN.candidates(p7, keep_body=True)
+before_size = CLEAN.total_size(items)
+res = CLEAN.delete(p7, items)
+check(res["freed"] == before_size, "释放体积和清单一致", CLEAN.human_size(res["freed"]))
+check(not res["failed"], "没有删失败的文件", str(res["failed"])[:60])
+check(all(not os.path.exists(x) for x in res["deleted"]), "文件真的从磁盘消失")
+check(os.path.exists(cut.out["body"]), "正文保留住了")
+sh = shelf.store.load()
+sh.projects = [p7 if x.id == p7.id else x for x in sh.projects]
+shelf.store.save(sh)
+p8 = shelf.store.load().by_id(p.id)
+check(p8 is not None, "清理后书架还能正常读出来")
+check(all(os.path.exists(i.path) for i in p8.items), "书架里不再挂着已删文件",
+      f"{len(p8.items)} 项")
+check(not any(os.path.abspath(i.path) in {os.path.abspath(x) for x in res["deleted"]}
+              for i in p8.items), "删除的文件没留在 items 里")
 
 print("\n" + ("全部通过" if not FAIL else f"失败 {len(FAIL)} 项：" + "；".join(FAIL)))
 sys.exit(1 if FAIL else 0)

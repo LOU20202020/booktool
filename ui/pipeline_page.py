@@ -41,6 +41,7 @@ from ui.right_rail import RightRail
 
 from ui import cover_link as CL
 from core import pipeline as P
+from core import printplan
 from core.shelf import collect as C
 from core.shelf import thumbs as T
 from core.shelf.model import (
@@ -289,6 +290,14 @@ class PipelinePage(QWidget):
                 self._save()
             except Exception:                        # noqa: BLE001
                 logging.getLogger(__name__).exception("生产线重扫产物失败")
+            # 打印计划：成品变了就按当前参数重算一份，存进这本书
+            try:
+                plan = printplan.build(self.project, self._booklet_params())
+                if plan:
+                    self.project.print_plan = plan
+                    self._save()
+            except Exception:                        # noqa: BLE001
+                logging.getLogger(__name__).exception("生成打印计划失败")
         elif not self.set_project_default():
             self.refresh()
         prim = getattr(self.main, "primary", None)
@@ -316,6 +325,14 @@ class PipelinePage(QWidget):
             return False
         ordered = sorted(self.shelf.projects, key=lambda p: p.opened or p.created, reverse=True)
         return self.set_project(ordered[0].id)
+
+    @staticmethod
+    def _booklet_params() -> dict:
+        """小册子的「每册页数 / 起始页」存在 QSettings 里，计划要用它算帖数。"""
+        from PySide6.QtCore import QSettings
+        qs = QSettings("XPlus", os.environ.get("BOOKTOOL_SETTINGS", "BookTool"))
+        return {"每册页数": qs.value("tool/BookletPage/每册页数", 20),
+                "起始页": qs.value("tool/BookletPage/起始页", 1)}
 
     def attach_split_page(self, page) -> None:
         """main.py 把新「分割」页换上来之后，把引用交给我们。"""
@@ -557,6 +574,11 @@ class PipelinePage(QWidget):
             if real:
                 return (f"已打 {len(real)} 次 · {sum(e.sheets for e in real)} 张",
                         real[-1].at.replace("T", " ")[5:16])
+            plan = p.print_plan or {}
+            if plan and not printplan.is_stale(plan, p):
+                sigs = plan.get("signatures") or []
+                head = f"计划 {len(sigs)} 帖 · {plan.get('sheets', 0)} 张" if sigs                     else f"计划 {plan.get('sheets', 0)} 张"
+                return head, "照计划打"
             return "还没打印", ("封面未做，可选" if not cover else "点了打印会记在这里")
         if step == STEP_FINAL:
             return ("已定稿" if p.final else "未定稿"), reason
@@ -611,6 +633,21 @@ class PipelinePage(QWidget):
             if item.pages:
                 lines[-1] += f" · {item.size / 1048576:.1f} MB"
             lines.append("</div>")
+        if step == STEP_PRINT:
+            plan = p.print_plan or {}
+            if plan and not printplan.is_stale(plan, p):
+                lines.append(f"<div style='margin-top:6px;color:#6B6459'>打印计划："
+                             f"{printplan.summary(plan)}")
+                sigs = plan.get("signatures") or []
+                if sigs:
+                    pairs = "、".join(f"帖{s['index']}={s['pages']}面/{s['sheets']}张"
+                                      for s in sigs[:6])
+                    more = f" …共 {len(sigs)} 帖" if len(sigs) > 6 else ""
+                    lines.append(f"<br><span style='color:#8A8072'>{pairs}{more}</span>")
+                lines.append("</div>")
+            elif plan:
+                lines.append("<div style='margin-top:6px;color:#B23A2E'>"
+                             "打印计划已过期（成品换过了），回到这一页会重算</div>")
         self.detail.setText("<br>".join(lines))
 
         self.split_box.setVisible(step == STEP_SPLIT)

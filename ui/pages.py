@@ -713,22 +713,27 @@ class CoverPage(ToolPage):
         size.lay.addWidget(self.preset)
         self.w = Stepper(148, 50, 400, 1, "mm")
         self.h = Stepper(210, 50, 500, 1, "mm")
-        self.spine = Stepper(10.4, 0, 80, 0.5, "mm", 1)
+        self.spine = Stepper(12.5, 0, 80, 0.5, "mm", 1)
+        # 默认尺寸是 148×210（A5），开本选中项要跟上；blockSignals 避免此时就回调
+        self.preset.blockSignals(True)
+        self.preset.set_index(1)
+        self.preset.blockSignals(False)
         for lab, w in (("成品宽度", self.w), ("成品高度", self.h), ("书脊厚度", self.spine)):
             w.valueChanged.connect(lambda _=0: self._changed())
             self.add_row(size.lay, lab, w)
+        self._spine_text_saved = ""
+        self.spine.valueChanged.connect(lambda _=0: self._sync_spine_text())
 
-        size.lay.addWidget(SectionLabel("按页数算书脊"))
+        # 书脊厚度只认实测值：以前按「总页数 × 克重」估算，实际差 1–2mm 很常见，
+        # 填错的后果是书脊文字压到封面/封底上。估算用的几个控件保留（配置键不变、
+        # 老设置照样能读），但不再出现在界面上，也不会再改写「书脊厚度」。
         self.pages_count = Stepper(200, 0, 2000, 4, "页")
-        self.pages_count.valueChanged.connect(lambda _=0: self._auto_spine())
-        self.add_row(size.lay, "总页数", self.pages_count)
         self.paper_gsm = QComboBox()
         self.paper_gsm.addItems(list(cover_core.PAPER_THICK.keys()))
         self.paper_gsm.setCurrentIndex(1)
-        self.paper_gsm.currentIndexChanged.connect(lambda _=0: self._auto_spine())
-        self.add_row(size.lay, "纸张", self.paper_gsm)
         self.spine_hint = Hint("")
-        size.lay.addWidget(self.spine_hint)
+        self.spine_note = Hint("厚度按成品量（书芯压紧后），填 0 则不印书脊文字。")
+        size.lay.addWidget(self.spine_note)
         self.add_card(size)
 
         imgs = Card()
@@ -785,7 +790,7 @@ class CoverPage(ToolPage):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.refresh_preview)
-        self._auto_spine()
+        self._sync_spine_text()
 
     def _build_right(self):
         from PySide6.QtWidgets import QLineEdit, QPlainTextEdit
@@ -897,12 +902,93 @@ class CoverPage(ToolPage):
                 "页数": self.pages_count, "纸张": self.paper_gsm, "条码": self.barcode}
 
     def _auto_spine(self):
-        mm = cover_core.spine_from_pages(int(self.pages_count.value()),
-                                         self.paper_gsm.currentText())
-        self.spine.set_value(mm)
-        self.spine_hint.setText(
-            f"{int(self.pages_count.value())} 页 · {self.paper_gsm.currentText()} → 书脊 {mm} mm")
+        """按页数估算书脊已停用：厚度只认实测值（见 build_left 里的说明）。"""
+        return
+
+    def _sync_spine_text(self):
+        """厚度为 0 时把书脊文字置成零宽空格。
+
+        原程序在 0 宽的脊上照样排书脊文字，字会压到封面/封底上；要么填厚度，
+        要么不印字，没有第三种。
+        """
+        if not hasattr(self, "spine_edit") or not hasattr(self, "spine_note"):
+            return
+        try:
+            value = float(self.spine.value() or 0)
+        except (TypeError, ValueError):
+            value = 0.0
+        current = self.spine_edit.text()
+        blank = "\u200b"
+        if value <= 0:
+            if current.strip() and current != blank:
+                self._spine_text_saved = current
+            if current != blank:
+                self.spine_edit.setText(blank)
+            self.spine_note.setText("厚度填 0：书脊上不印字。量好实测厚度再填，字会回来。")
+        else:
+            if current == blank:
+                self.spine_edit.setText(getattr(self, "_spine_text_saved", ""))
+            self.spine_note.setText("厚度按成品量（书芯压紧后）。")
+        self._limit_spine_pt(value)
         self._changed()
+
+    def _limit_spine_pt(self, spine_mm=None) -> None:
+        """字号不能大过这条脊：超了字就会压到封面/封底上。
+
+        上限 = 书脊宽 × 0.72 换算成 pt（和 core.cover.max_spine_pt 同一套算法）。
+        界面把字号步进器的上限跟着厚度走；已经超了的直接调回上限，并在提示里说明。
+        """
+        if not hasattr(self, "spine_pt") or not hasattr(self, "spine_note"):
+            return
+        try:
+            mm = float(self.spine.value() if spine_mm is None else spine_mm)
+        except (TypeError, ValueError):
+            mm = 0.0
+        if mm <= 0:
+            self.spine_pt.set_range(6, 60)
+            return
+        limit = max(6, int(cover_core.max_spine_pt(mm)))
+        self.spine_pt.set_range(6, limit)
+        clamped = float(self.spine_pt.value()) > limit
+        if clamped:
+            self.spine_pt.set_value(limit)
+        note = f"厚度按成品量（书芯压紧后）；{mm:g}mm 的书脊，字号最多 {limit}pt。"
+        if clamped:
+            note = f"字号超出书脊宽度，已调到 {limit}pt（{mm:g}mm 的脊最多这么多）。"
+        self.spine_note.setText(note)
+
+    def load_settings(self, s):
+        super().load_settings(s)
+        try:
+            # 升级一次性迁移：老版本那个厚度是按页数估出来的，统一换成常用实测值 12.5mm
+            if not s.value("ui/spine_default_v2"):
+                s.setValue("tool/CoverPage/书脊", 12.5)
+                s.setValue("ui/spine_default_v2", 1)
+                s.setValue("ui/spine_manual", 1)
+                s.sync()
+                self.spine.set_value(12.5)
+        except Exception:
+            pass
+        self._sync_spine_text()
+        self._sync_preset_chip()
+
+    def _sync_preset_chip(self) -> None:
+        """开本选中项跟着实际宽高走（宽高是存过的，开本不存，容易和数字不一致）。"""
+        if not hasattr(self, "preset"):
+            return
+        try:
+            w, h = int(self.w.value()), int(self.h.value())
+        except (TypeError, ValueError):
+            return
+        if (w, h) == (105, 148):
+            idx = 0
+        elif (w, h) == (148, 210):
+            idx = 1
+        else:
+            return
+        self.preset.blockSignals(True)
+        self.preset.set_index(idx)
+        self.preset.blockSignals(False)
 
     def _pick_color(self):
         from PySide6.QtWidgets import QColorDialog

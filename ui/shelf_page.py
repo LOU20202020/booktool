@@ -17,7 +17,10 @@ import os
 from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -37,6 +40,7 @@ from ui.theme import INK, INK2, INK3, LINE, RED, SURFACE
 from ui.widgets import Card, Hint
 
 from ui import ui_kit as K
+from core.shelf import cleanup as CLEAN
 from core.shelf import collect as C
 from core.shelf import thumbs as T
 from core.shelf.model import (
@@ -44,6 +48,73 @@ from core.shelf.model import (
     ST_SKIP, ST_STALE, ST_TODO, STEPS, STEP_NAMES, Project, Series, Shelf,
 )
 from core.shelf.store import ShelfStore
+
+class _CleanupDialog(QDialog):
+    """清理中间产物：先列清单，再确认。
+
+    只列"派生文件"：原稿、定稿、手动加入的项都不在这里；
+    默认还保留 -正文.pdf（后面拼版/加页码要用），要删得自己取消勾选。
+    """
+
+    def __init__(self, project: Project, parent=None):
+        super().__init__(parent)
+        self.project = project
+        self.items = []
+        self.setWindowTitle("清理中间产物")
+        self.resize(560, 440)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 14, 16, 12)
+        root.setSpacing(10)
+
+        self.head = QLabel("")
+        self.head.setWordWrap(True)
+        self.head.setStyleSheet(f"color:{INK};font-size:12.5px;")
+        root.addWidget(self.head)
+
+        self.chk_body = QCheckBox("保留「-正文.pdf」（后面拼版 / 加页码还要用它）")
+        self.chk_body.setChecked(True)
+        self.chk_body.stateChanged.connect(lambda *_: self._reload())
+        root.addWidget(self.chk_body)
+
+        self.list = QListWidget()
+        self.list.setStyleSheet(K.LIST_QSS)
+        root.addWidget(self.list, 1)
+
+        self.note = QLabel("原稿、定稿、手动加入的文件不会被删。删掉的东西不进回收站。")
+        self.note.setStyleSheet(f"color:{INK3};font-size:11px;")
+        self.note.setWordWrap(True)
+        root.addWidget(self.note)
+
+        box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.ok_btn = box.button(QDialogButtonBox.Ok)
+        self.ok_btn.setObjectName("Primary")
+        box.button(QDialogButtonBox.Ok).setText("删除这些")
+        box.button(QDialogButtonBox.Cancel).setText("取消")
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        root.addWidget(box)
+
+        self._reload()
+
+    def _reload(self) -> None:
+        self.items = CLEAN.candidates(self.project, keep_body=self.chk_body.isChecked())
+        self.list.clear()
+        for item in self.items:
+            try:
+                size = os.path.getsize(item.path)
+            except OSError:
+                size = 0
+            row = QListWidgetItem(f"{os.path.basename(item.path)}　　{CLEAN.human_size(size)}")
+            row.setToolTip(item.path)
+            self.list.addItem(row)
+        total = CLEAN.total_size(self.items)
+        if self.items:
+            self.head.setText(f"将删除 <b>{len(self.items)}</b> 个文件，共 <b>{CLEAN.human_size(total)}</b>：")
+        else:
+            self.head.setText("没有可清理的中间产物。")
+        self.ok_btn.setEnabled(bool(self.items))
+
 
 STATE_COLOR = {
     ST_DONE: "#1E1B18",
@@ -278,8 +349,11 @@ class ShelfPage(QWidget):
         self.btn_open = self._btn("打开这本书", self.open_book, primary=True)
         self.btn_folder = self._btn("在文件夹中显示", self.reveal)
         self.btn_final = self._btn("设为定稿", self.toggle_final)
+        self.btn_clean = self._btn("清理中间产物…", self.clean_intermediates)
+        self.btn_clean.setToolTip("只删派生文件：原稿、定稿、手动加入的不动")
         self.btn_rescan = self._btn("重新扫描", self.rescan)
-        for b in (self.btn_open, self.btn_folder, self.btn_final, self.btn_rescan):
+        for b in (self.btn_open, self.btn_folder, self.btn_final, self.btn_clean,
+                  self.btn_rescan):
             btns.addWidget(b)
         btns.addStretch(1)
         btns.addWidget(QLabel("系列"))
@@ -594,6 +668,30 @@ class ShelfPage(QWidget):
         self._save()
         self._show_detail(self._cur)
         self.refresh_list()
+
+    def clean_intermediates(self) -> None:
+        """列出可删的中间产物 → 确认 → 删 → 记账到状态栏。"""
+        p = self._cur
+        if p is None:
+            self._say("先选一本书")
+            return
+        if not CLEAN.candidates(p, keep_body=True):
+            self._say("这本书没有可清理的中间产物")
+            return
+        dlg = _CleanupDialog(p, self)
+        if dlg.exec() != QDialog.Accepted or not dlg.items:
+            self._say("已取消清理")
+            return
+        keep_body = dlg.chk_body.isChecked()
+        result = CLEAN.delete(p, dlg.items)
+        self._save()
+        self.refresh()
+        self._show_detail(self.shelf.by_id(p.id) or p)
+        freed = CLEAN.human_size(result["freed"])
+        msg = f"已清理 {len(result['deleted'])} 个文件，释放 {freed}"
+        if result["failed"]:
+            msg += f"；{len(result['failed'])} 个没删掉（被占用？）"
+        self._say(msg)
 
     def rescan(self) -> None:
         if not self._cur:

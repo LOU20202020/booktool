@@ -70,6 +70,20 @@ def spine_from_pages(pages: int, paper: str = "80g 胶版") -> float:
     return round(max(0.0, pages) / 2 * t, 1)
 
 
+#: 书脊文字最多占到书脊宽度的这个比例（两侧各留约 14% 安全边）
+SPINE_FIT = 0.72
+
+
+def max_spine_pt(spine_mm: float) -> float:
+    """这么厚的书脊，书脊文字最大能到多少 pt。
+
+    竖排汉字的一字宽≈字号，所以字号(pt) × 25.4/72 ≤ 书脊(mm) × SPINE_FIT。
+    字号超了字就会压到封面/封底上，所以渲染和界面都拿这个数当上限。
+    """
+    mm = max(0.0, float(spine_mm or 0))
+    return round(mm * SPINE_FIT * 72 / 25.4, 1)
+
+
 def load_source(src, dpi: int = 200) -> Image.Image:
     if isinstance(src, (tuple, list)):
         path, page = src[0], int(src[1])
@@ -366,13 +380,16 @@ def render_cover(width_mm: float, height_mm: float, spine_mm: float,
 
     # ---------------- 书脊 ----------------
     text = spine_text if spine_text is not None else title
+    # 字号不能超过这条脊容得下的：超了字会压到封面/封底上，这里按上限算
+    spine_pt_eff = min(max(0.0, float(spine_pt or 0)), max_spine_pt(spine_mm))
+    spine_pt_clamped = bool(text) and (float(spine_pt or 0) - spine_pt_eff) > 0.5
     if text:
         if vertical:
             text = "".join(ch for ch in text if ch.strip())
-        px = max(6, int(spine_pt * dpi / 72))
+        px = max(6, int(spine_pt_eff * dpi / 72))
         px = _spine_fit(text, px, S)
         if vertical and text:
-            px = min(px, int(S * 0.8))
+            px = min(px, int(S * SPINE_FIT))
             cell = min(px, (total_h * 0.9) / max(1, len(text)))
             px = max(6, int(cell * 0.92))
         f = _font(FONT_PATH, px)
@@ -389,9 +406,16 @@ def render_cover(width_mm: float, height_mm: float, spine_mm: float,
                           font=f, fill=spine_ink)
                 y += cell
         else:
+            # 横排：整串文字也得塞得进这条脊，塞不进就继续缩
+            while px > 6 and draw.textlength(text, font=f) > S * 0.9:
+                px = int(px * 0.92)
+                f = _font(FONT_PATH, px)
             tw = draw.textlength(text, font=f)
             draw.text((W + B + (S - tw) / 2, (total_h - px) / 2), text,
                       font=f, fill=spine_ink)
+
+    canvas.info["spine_pt"] = round(spine_pt_eff, 1) if text else 0.0
+    canvas.info["spine_pt_clamped"] = spine_pt_clamped
 
     if sheet == "a4":
         return _compose_a4(canvas, dpi, (B, W, H, S), crop_marks, safety_mm)
@@ -439,6 +463,7 @@ def _compose_a4(spread: Image.Image, dpi: int, geo: tuple,
     img = spread.resize((w, h), Image.LANCZOS) if scale < 1.0 else spread.copy()
     px, py = (sheet_w - w) // 2, (sheet_h - h) // 2
     canvas = Image.new("RGB", (sheet_w, sheet_h), (255, 255, 255))
+    canvas.info.update(spread.info)          # 保留 spine_pt / spine_pt_clamped 等标记
     canvas.paste(img, (px, py))
     if marks:
         draw = ImageDraw.Draw(canvas)

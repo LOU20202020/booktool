@@ -50,15 +50,21 @@ VOLUME_PATTERNS = (
 
 
 DUP_RE = re.compile(r"^[-_\s]?\d{1,2}\.pdf$", re.IGNORECASE)
+#: 产物后面的 -2 / -3（如「-小册子-2.pdf」）也是副本，不算新产物
+DUP_TAIL_RE = re.compile(r"[-_\s]\d{1,2}\.pdf$", re.IGNORECASE)
 
 
 def classify(tail: str) -> str:
-    """tail 是去掉原稿前缀后的文件名部分，例如 '-小册子-2.pdf'。"""
+    """tail 是去掉原稿前缀后的文件名部分，例如 '-小册子-2.pdf'。
+
+    带 -2/-3 尾巴的**先**认成副本：不然「-小册子-2.pdf」会盖过正本，
+    生产线第⑤⑥步就会指着一份副本说话。
+    """
+    if DUP_RE.match(tail) or DUP_TAIL_RE.search(tail):
+        return KIND_DUP
     for key, kind in SUFFIX_RULES:
         if key in tail:
             return kind
-    if DUP_RE.match(tail):        # -2.pdf / -3.pdf：重复的副本，不是产物
-        return KIND_DUP
     return KIND_OTHER
 
 

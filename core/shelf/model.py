@@ -254,7 +254,11 @@ class Project:
         return None
 
     def layout_item(self) -> Item | None:
-        return self.first(*LAYOUT_KINDS)
+        """最新的一份排版产物（同一种有多个时取 mtime 最大的）。"""
+        cands = [i for i in self.items if i.kind in LAYOUT_KINDS and i.exists]
+        if not cands:
+            return None
+        return max(cands, key=lambda i: i.mtime)
 
     def item_for_step(self, step: int) -> Item | None:
         if step == STEP_SPLIT:

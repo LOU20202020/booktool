@@ -138,8 +138,10 @@ def build_args(
     if "paper" in spec:
         args += ["--paper-size", spec["paper"]]
     else:
+        # 自定义尺寸（B6 单行本 128×182）只能用 --custom-size，而且单位要写全名：
+        # Calibre 9.x 的 --paper-size 不认 "custom"，--unit 只认 millimeter 这类全称
         w, h = spec["custom"]
-        args += ["--paper-size", "custom", "--custom-size", f"{w}x{h}", "--unit", "mm"]
+        args += ["--custom-size", f"{w}x{h}", "--unit", "millimeter"]
 
     # 漫画是整页图片：一律零边距，否则每页四周留白、图被缩小
     comic = kind == "漫画"

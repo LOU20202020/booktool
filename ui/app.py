@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.6"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
@@ -752,6 +752,49 @@ def main():
                 f"caption={page.preview_caption.text()}"))
 
         QTimer.singleShot(400, run_check)
+
+    # 格式转换自检（打包后验证用）：真跑一次转换，结果写进文件再退出
+    conv_check = os.environ.get("BOOKTOOL_CONVERT_CHECK")
+    if conv_check:
+        conv_src = os.environ.get("BOOKTOOL_CONVERT_SRC", "")
+        conv_page = w.pages[w.page_index["convert"]]
+
+        def _write_conv(text: str):
+            with open(conv_check, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+            sys.exit(0)
+
+        def _start_conv():
+            try:
+                w.goto(w.page_index["convert"])
+                conv_page.set_source(conv_src)
+            except Exception as exc:                      # noqa: BLE001
+                return _write_conv(f"load-fail {exc}")
+            QTimer.singleShot(300, _run_conv)
+
+        def _run_conv():
+            try:
+                conv_page.run()
+            except Exception as exc:                      # noqa: BLE001
+                return _write_conv(f"run-fail {exc}")
+            QTimer.singleShot(400, _poll_conv)
+
+        def _poll_conv():
+            t0 = getattr(_poll_conv, "t0", None)
+            if t0 is None:
+                _poll_conv.t0 = time.time()
+            if conv_page.out:
+                toc = conv_page.toc.count() if hasattr(conv_page, "toc") else 0
+                return _write_conv(
+                    f"version={APP_VERSION} out={os.path.basename(conv_page.out)} "
+                    f"exists={os.path.exists(conv_page.out)} "
+                    f"size={os.path.getsize(conv_page.out) if os.path.exists(conv_page.out) else 0} "
+                    f"toc={toc} status={w.status_lab.text()}")
+            if time.time() - _poll_conv.t0 > 180:
+                return _write_conv(f"version={APP_VERSION} TIMEOUT status={w.status_lab.text()}")
+            QTimer.singleShot(400, _poll_conv)
+
+        QTimer.singleShot(500, _start_conv)
 
     # 打印自检：确认随包组件找得到、打印机列表读得到
     pchk = os.environ.get("BOOKTOOL_PRINT_CHECK")
