@@ -684,6 +684,9 @@ class CoverPage(ToolPage):
     title = "封面制作"
     crumb = "书籍制作工具 / 设计"
     action_text = "生成封面"
+    # 封面不靠输入文件：开本、书名、配色都是自己填的，纯文字封面也必须能生成。
+    # 原来继承 ToolPage.require_file（没 file 就当没准备好），主按钮永远是灰的。
+    always_ready = True
 
     def on_show(self):
         super().on_show()
