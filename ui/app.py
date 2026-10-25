@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
@@ -782,6 +782,41 @@ def main():
             sys.exit(0)
 
         QTimer.singleShot(500, _cover_check)
+
+    # 封面页自检（打包后验证用）：主按钮亮不亮、点了能不能真出封面，写文件再退出
+    cover_btn = os.environ.get("BOOKTOOL_COVER_CHECK")
+    if cover_btn:
+        cover_out = os.environ.get("BOOKTOOL_COVER_OUT", "")
+        cp = w.pages[w.page_index["cover"]]
+
+        def _write_btn(text: str):
+            with open(cover_btn, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+            sys.exit(0)
+
+        def _btn_step1():
+            w.goto(w.page_index["cover"])
+            QTimer.singleShot(1200, _btn_step2)
+
+        def _btn_step2():
+            if not cover_out:
+                return _write_btn(f"version={APP_VERSION} enabled={w.primary.isEnabled()} text={w.primary.text()}")
+            from PySide6.QtWidgets import QFileDialog
+            orig = QFileDialog.getSaveFileName
+            QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (cover_out, "PDF (*.pdf)"))
+            try:
+                w.primary.click()
+            finally:
+                QFileDialog.getSaveFileName = orig
+            QTimer.singleShot(1500, _btn_step3)
+
+        def _btn_step3():
+            ok = os.path.isfile(cover_out) and os.path.getsize(cover_out) > 2000
+            size = os.path.getsize(cover_out) if os.path.isfile(cover_out) else 0
+            w.grab().save(cover_out.replace(".pdf", ".png"))
+            _write_btn(f"version={APP_VERSION} enabled={w.primary.isEnabled()} made={ok} size={size}")
+
+        QTimer.singleShot(600, _btn_step1)
 
     # 格式转换自检（打包后验证用）：真跑一次转换，结果写进文件再退出
     conv_check = os.environ.get("BOOKTOOL_CONVERT_CHECK")
