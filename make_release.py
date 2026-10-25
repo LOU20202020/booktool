@@ -14,7 +14,7 @@ DIST = os.path.join(ROOT, "dist", "书籍制作工具")
 REL = os.path.join(ROOT, "release")
 PKG = os.path.join(ROOT, "packaging")
 APP = "书籍制作工具"
-VER = "1.1.8"
+VER = "1.1.9"
 
 FIRST_RUN = """{app} {ver}（免安装版）
 

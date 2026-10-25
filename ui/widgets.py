@@ -415,6 +415,12 @@ class PreviewView(QGraphicsView):
         self.fold_x = pix.width() / 2 if fold else None
         self.fit()
 
+    def clear_image(self) -> None:
+        """清掉当前画面（换文件时用）。"""
+        self.scene_.clear()
+        self.item = None
+        self.fold_x = None
+
     def fit(self):
         if self.item:
             self.resetTransform()

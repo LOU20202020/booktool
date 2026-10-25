@@ -389,5 +389,82 @@ check(booklet.file.path.endswith(os.path.basename(src)),
 check(booklet.file.path != old or booklet.file.path == src, "文件路径确实换成了拖进来的那份")
 check(w.primary.isEnabled(), "PDF 拖进来后主按钮也可点", w.primary.text())
 
+print("\n=== 12) 转换页：拖进来先看到封面 ===")
+from core import convert as _conv
+import zipfile as _zip
+
+if not _conv.available():
+    print("  （本机没装 Calibre，跳过）")
+else:
+    # 造一本"带封面"的 epub
+    cover_epub = os.path.join(TMP, "封面测试书.epub")
+    from PIL import Image as _Image, ImageDraw as _ImageDraw
+    img = _Image.new("RGB", (600, 850), (178, 58, 46))
+    _ImageDraw.Draw(img).text((40, 60), "COVER", fill=(255, 255, 255))
+    cover_jpg = os.path.join(TMP, "cover.jpg")
+    img.save(cover_jpg, "JPEG", quality=85)
+    with _zip.ZipFile(cover_epub, "w") as z:
+        z.writestr("mimetype", "application/epub+zip", _zip.ZIP_STORED)
+        z.writestr("META-INF/container.xml",
+                   '<?xml version="1.0"?><container version="1.0" '
+                   'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                   '<rootfile full-path="OEBPS/content.opf" '
+                   'media-type="application/oebps-package+xml"/></rootfiles></container>')
+        z.writestr("OEBPS/content.opf",
+                   '<?xml version="1.0" encoding="utf-8"?><package '
+                   'xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="id">'
+                   '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                   '<dc:title>封面测试书</dc:title><dc:identifier id="id">c1</dc:identifier>'
+                   '<meta name="cover" content="cover-img"/></metadata><manifest>'
+                   '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                   '<item id="cover-img" href="cover.jpg" media-type="image/jpeg"/>'
+                   '</manifest><spine><itemref idref="c1"/></spine></package>')
+        z.writestr("OEBPS/c1.xhtml",
+                   '<?xml version="1.0" encoding="utf-8"?><html '
+                   'xmlns="http://www.w3.org/1999/xhtml"><body><p>正文</p></body></html>')
+        z.write(cover_jpg, "OEBPS/cover.jpg")
+
+    w.goto(w.page_index["convert"])
+    APP.processEvents()
+    cv = w.pages[w.page_index["convert"]]
+    cv.set_source(cover_epub)
+    spin(lambda: cv.preview.item is not None
+         or not cv.placeholder.text().startswith("正在"), timeout=30)
+    APP.processEvents()
+    check(cv.preview.item is not None, "带封面的书：拖进来就有预览图",
+          type(cv.preview.item).__name__ if cv.preview.item else "空")
+    check("封面预览" in cv.preview_hint.text(), "说明写着这是封面预览",
+          cv.preview_hint.text())
+
+    # 没封面的书：明确说"没有封面图"，而不是空白
+    plain = os.path.join(TMP, "无封面.epub")
+    with _zip.ZipFile(plain, "w") as z:
+        z.writestr("mimetype", "application/epub+zip", _zip.ZIP_STORED)
+        z.writestr("META-INF/container.xml",
+                   '<?xml version="1.0"?><container version="1.0" '
+                   'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                   '<rootfile full-path="OEBPS/content.opf" '
+                   'media-type="application/oebps-package+xml"/></rootfiles></container>')
+        z.writestr("OEBPS/content.opf",
+                   '<?xml version="1.0" encoding="utf-8"?><package '
+                   'xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="id">'
+                   '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                   '<dc:title>无封面</dc:title><dc:identifier id="id">n1</dc:identifier>'
+                   '</metadata><manifest><item id="c1" href="c1.xhtml" '
+                   'media-type="application/xhtml+xml"/></manifest>'
+                   '<spine><itemref idref="c1"/></spine></package>')
+        z.writestr("OEBPS/c1.xhtml",
+                   '<?xml version="1.0" encoding="utf-8"?><html '
+                   'xmlns="http://www.w3.org/1999/xhtml"><body><p>正文</p></body></html>')
+    cv.set_source(plain)
+    spin(lambda: cv.preview.item is not None
+         or not cv.placeholder.text().startswith("正在"), timeout=60)
+    APP.processEvents()
+    # Calibre 对没有封面的书会自己合成一张（带书名），所以两种结果都算对：
+    # 要么显示合成封面，要么明确告诉用户没有封面图
+    settled = cv.preview.item is not None or "没有封面图" in cv.placeholder.text()
+    check(settled, "没封面的书：不会一直停在「正在读取封面」",
+          "合成封面" if cv.preview.item is not None else cv.placeholder.text()[:30])
+
 print("\n" + ("全部通过" if not FAIL else f"失败 {len(FAIL)} 项：" + "；".join(FAIL)))
 sys.exit(1 if FAIL else 0)

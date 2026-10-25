@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.1.8"
+APP_VERSION = "1.1.9"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
@@ -761,6 +761,27 @@ def main():
                 f"caption={page.preview_caption.text()}"))
 
         QTimer.singleShot(400, run_check)
+
+    # 封面预览自检（打包后验证用）：载入电子书 → 停一会儿截图 → 退出
+    cover_shot = os.environ.get("BOOKTOOL_COVER_SHOT")
+    if cover_shot:
+        cover_src = os.environ.get("BOOKTOOL_COVER_SRC", "")
+        cover_page = w.pages[w.page_index["convert"]]
+
+        def _cover_check():
+            try:
+                w.goto(w.page_index["convert"])
+                cover_page.set_source(cover_src)
+            except Exception as exc:                      # noqa: BLE001
+                print("load-fail", exc)
+                sys.exit(0)
+            QTimer.singleShot(3000, _cover_snap)          # 给封面线程/渲染留时间
+
+        def _cover_snap():
+            w.grab().save(cover_shot)
+            sys.exit(0)
+
+        QTimer.singleShot(500, _cover_check)
 
     # 格式转换自检（打包后验证用）：真跑一次转换，结果写进文件再退出
     conv_check = os.environ.get("BOOKTOOL_CONVERT_CHECK")

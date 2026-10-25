@@ -252,6 +252,38 @@ def convert(
     }
 
 
+def cover_image(path: str, out_dir: str = "") -> str:
+    """把电子书的封面图取出来（Calibre 的 ebook-meta，只读元数据，很快）。
+
+    找不到封面 / 没装 Calibre 就返回空串，界面自己决定显示什么。
+    """
+    exe = binary()
+    if not exe or not path or not os.path.exists(path):
+        return ""
+    meta = os.path.join(os.path.dirname(exe), "ebook-meta.exe")
+    if not os.path.exists(meta):
+        meta = shutil.which("ebook-meta") or ""
+    if not meta:
+        return ""
+    folder = out_dir or os.path.join(
+        os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
+        "XPlus", "BookTool", "convert-cover")
+    os.makedirs(folder, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(path))[0]
+    safe = re.sub(r"[^0-9A-Za-z一-龥._-]+", "-", stem)[:40].strip("-") or "cover"
+    out = os.path.join(folder, safe + ".jpg")
+    if os.path.exists(out) and os.path.getsize(out) > 0:
+        return out
+    try:
+        proc = subprocess.run([meta, path, "--get-cover", out],
+                              capture_output=True, timeout=60)
+    except Exception:                                    # noqa: BLE001
+        return ""
+    if os.path.exists(out) and os.path.getsize(out) > 0:
+        return out
+    return ""
+
+
 def probe(path: str) -> dict:
     """读一个转换好的 PDF，给界面填预览与目录。"""
     import pymupdf as fitz

@@ -69,6 +69,22 @@ class _Worker(QThread):
             self.failed.emit(str(err))
 
 
+class _CoverWorker(QThread):
+    """后台读封面图（ebook-meta 只读元数据，很快；大 mobi 也不卡界面）。"""
+
+    done = Signal(str)
+
+    def __init__(self, src: str, parent=None) -> None:
+        super().__init__(parent)
+        self.src = src
+
+    def run(self) -> None:  # noqa: D401
+        try:
+            self.done.emit(C.cover_image(self.src))
+        except Exception:                       # noqa: BLE001
+            self.done.emit("")
+
+
 class _Canvas(PreviewView):
     """预览画布。
 
@@ -108,6 +124,7 @@ class ConvertPage(QWidget):
         self.src = ""
         self.out = ""
         self._worker: _Worker | None = None
+        self._cover_worker: _CoverWorker | None = None
         self._cancel = threading.Event()
         self.setAcceptDrops(True)
         self._build()
@@ -378,6 +395,11 @@ class ConvertPage(QWidget):
             f"{ext} · {size / 1024 / 1024:.1f} MB"
             + ("" if C.accepts(path) else "　⚠ 不在支持列表里")
         )
+        self.preview.clear_image()
+        self.placeholder.setText("正在读取封面…")
+        self.placeholder.show()
+        self.preview_hint.setText("—")
+        self._load_cover(path)
         self._say("就绪，点「开始转换」" if C.available() else C.missing_hint())
         prim = getattr(self.main, "primary", None)
         if prim is not None:
@@ -390,6 +412,29 @@ class ConvertPage(QWidget):
         refresh = getattr(self.main, "refresh_action_state", None)
         if callable(refresh):
             refresh()
+
+    def _load_cover(self, path: str) -> None:
+        """先给一张封面预览，让人确认没选错书；没有封面就说明转完看第 1 页。
+
+        连着换文件时每次都开一个新线程，结果按来源路径过滤——旧的那次回来就直接丢掉，
+        免得"上一个文件的封面"盖到新文件上。
+        """
+        worker = _CoverWorker(path, self)
+        worker.done.connect(lambda img, src=path: self._on_cover(img, src))
+        self._cover_worker = worker
+        worker.start()
+
+    def _on_cover(self, image_path: str, src: str = "") -> None:
+        if src and self.src and os.path.abspath(src) != os.path.abspath(self.src):
+            return                       # 已经换书了，这张封面过期
+        pix = QPixmap(image_path) if image_path else QPixmap()
+        if pix.isNull():
+            self.placeholder.setText("这本书没有封面图——点「开始转换」，转完在这里看第 1 页")
+            self.placeholder.show()
+            return
+        self.preview.set_image(pix)
+        self.placeholder.hide()
+        self.preview_hint.setText("封面预览　·　转换完成后这里显示第 1 页")
 
     def start(self) -> None:
         if not self.src:
