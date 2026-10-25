@@ -379,10 +379,17 @@ class ConvertPage(QWidget):
             + ("" if C.accepts(path) else "　⚠ 不在支持列表里")
         )
         self._say("就绪，点「开始转换」" if C.available() else C.missing_hint())
-        if not C.available():
-            prim = getattr(self.main, "primary", None)
-            if prim is not None:
+        prim = getattr(self.main, "primary", None)
+        if prim is not None:
+            if C.available():
+                prim.setText(self.action_text)
+                prim.setEnabled(True)
+            else:
                 prim.setEnabled(False)
+        # 拖文件进来时主窗口还停在"没选文件"的状态，要让它重算一次按钮
+        refresh = getattr(self.main, "refresh_action_state", None)
+        if callable(refresh):
+            refresh()
 
     def start(self) -> None:
         if not self.src:

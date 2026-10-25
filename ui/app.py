@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.1.7"
+APP_VERSION = "1.1.8"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
@@ -671,6 +671,7 @@ class MainWindow(QMainWindow):
                 page.file.set_path(p)
                 self.proj.setText("当前文稿　" + os.path.basename(p))
         ev.acceptProposedAction()
+        self.refresh_action_state()      # 拖进来之后主按钮要立刻可点
 
     def set_project(self, name: str):
         from PySide6.QtGui import QFontMetrics

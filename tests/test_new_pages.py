@@ -372,6 +372,8 @@ if os.path.exists(mobi_path):
           f"{type(tgt).__name__} → {os.path.basename(conv.src) if conv.src else '未变'}")
     check(conv.src_name.text().endswith(".mobi"), "界面上的文件名也更新了",
           conv.src_name.text()[:30])
+    check(w.primary.isEnabled(), "拖完主按钮立刻可点（之前是灰的）",
+          f"{w.primary.text()} / enabled={w.primary.isEnabled()}")
 else:
     print("  （跳过：没有 mobi 样张）")
 
@@ -385,6 +387,7 @@ check(booklet.file.path.endswith(os.path.basename(src)),
       "PDF 拖到画布被主窗口接住",
       f"{type(tgt).__name__} → {os.path.basename(booklet.file.path or '')}")
 check(booklet.file.path != old or booklet.file.path == src, "文件路径确实换成了拖进来的那份")
+check(w.primary.isEnabled(), "PDF 拖进来后主按钮也可点", w.primary.text())
 
 print("\n" + ("全部通过" if not FAIL else f"失败 {len(FAIL)} 项：" + "；".join(FAIL)))
 sys.exit(1 if FAIL else 0)

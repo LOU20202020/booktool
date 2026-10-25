@@ -112,6 +112,13 @@ class SplitToolPage(QWidget):
         self.out = {}
         self._build_page_grid()
         self._refresh_all()
+        prim = getattr(self.main, "primary", None)
+        if prim is not None:
+            prim.setText(self.action_text)
+            prim.setEnabled(True)
+        refresh = getattr(self.main, "refresh_action_state", None)
+        if callable(refresh):
+            refresh()
 
     # ── 界面 ───────────────────────────────────────────────────────────
     def _build(self) -> None:
