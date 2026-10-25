@@ -113,6 +113,8 @@ class ConvertPage(QWidget):
         self._build()
         self._sync_kind()
         self._sync_backend()
+        from ui.dnd import forward_drops
+        forward_drops(self)          # 预览画布的 viewport 会抢拖放，转回本页处理
 
     # ── 页面契约（供 MainWindow._switch / _run 调用）─────────────────────
     def require_file(self) -> bool:

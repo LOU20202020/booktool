@@ -64,6 +64,8 @@ class SplitToolPage(QWidget):
         self._pages: dict[int, QPixmap] = {}    # 主预览的高清图
         self.setAcceptDrops(True)
         self._build()
+        from ui.dnd import forward_drops
+        forward_drops(self)          # 预览画布会抢拖放，转回本页处理
         self._refresh_all()
 
     # ── 页面契约 ───────────────────────────────────────────────────────

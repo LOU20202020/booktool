@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.1.6"
+APP_VERSION = "1.1.7"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
@@ -182,6 +182,14 @@ class MainWindow(QMainWindow):
             if hasattr(p, "file"):
                 p.file.picked.connect(lambda _=0, pg=p: self._on_file(pg))
         bl.addWidget(self.stack, 1)
+
+        # 预览画布(QGraphicsView)的 viewport 会吃掉拖放：把事件转回页面/主窗口，
+        # 否则把 PDF 拖到画布上"没反应"（转换页的 mobi、分割页的 PDF 都栽在这上面）
+        from .dnd import forward_drops
+        for _page in self.pages:
+            if type(_page).__name__ in ("ConvertPage", "SplitToolPage"):
+                continue                      # 这两页自己接（构造时已装）
+            forward_drops(_page, self)
 
         # 生产线第②步直接连到「分割」页
         self.pipeline_page = self.pages[self.page_index["pipeline"]]

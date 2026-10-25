@@ -333,5 +333,58 @@ check(all(os.path.exists(i.path) for i in p8.items), "书架里不再挂着已�
 check(not any(os.path.abspath(i.path) in {os.path.abspath(x) for x in res["deleted"]}
               for i in p8.items), "删除的文件没留在 items 里")
 
+print("\n=== 11) 拖放：把文件拖到预览画布上也要认 ===")
+from PySide6.QtCore import QMimeData, QPoint, Qt, QUrl
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
+
+
+def _deepest_drop_target(page):
+    node = page.childAt(QPoint(page.width() // 2, page.height() // 2))
+    while node is not None:
+        if node.acceptDrops():
+            return node
+        node = node.parentWidget()
+    return None
+
+
+def _drop_on(page, path):
+    tgt = _deepest_drop_target(page) or page
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(path)])
+    pos = QPoint(tgt.width() // 2, tgt.height() // 2)
+    QApplication.sendEvent(tgt, QDragEnterEvent(pos, Qt.CopyAction, mime,
+                                               Qt.LeftButton, Qt.NoModifier))
+    QApplication.sendEvent(tgt, QDropEvent(pos, Qt.CopyAction, mime,
+                                           Qt.LeftButton, Qt.NoModifier))
+    APP.processEvents()
+    return tgt
+
+
+# 转换页：mobi 拖到画布 → 源文件被填上（这就是用户报的"拖进去没反应"）
+w.goto(w.page_index["convert"])
+APP.processEvents()
+conv = w.pages[w.page_index["convert"]]
+conv.src = ""
+mobi_path = os.path.join(os.environ.get("TEMP", TMP), "convtest", "中文测试书.mobi")
+if os.path.exists(mobi_path):
+    tgt = _drop_on(conv, mobi_path)
+    check(bool(conv.src), "mobi 拖到画布被认出",
+          f"{type(tgt).__name__} → {os.path.basename(conv.src) if conv.src else '未变'}")
+    check(conv.src_name.text().endswith(".mobi"), "界面上的文件名也更新了",
+          conv.src_name.text()[:30])
+else:
+    print("  （跳过：没有 mobi 样张）")
+
+# 小册子页：PDF 拖到画布 → 主窗口接手，当前文稿被设置
+w.goto(w.page_index["booklet"])
+APP.processEvents()
+booklet = w.pages[w.page_index["booklet"]]
+old = booklet.file.path
+tgt = _drop_on(booklet, src)
+check(booklet.file.path.endswith(os.path.basename(src)),
+      "PDF 拖到画布被主窗口接住",
+      f"{type(tgt).__name__} → {os.path.basename(booklet.file.path or '')}")
+check(booklet.file.path != old or booklet.file.path == src, "文件路径确实换成了拖进来的那份")
+
 print("\n" + ("全部通过" if not FAIL else f"失败 {len(FAIL)} 项：" + "；".join(FAIL)))
 sys.exit(1 if FAIL else 0)
