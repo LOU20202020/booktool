@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from typing import Callable, Iterable
 
 from core.pdfops import unique_path
@@ -53,12 +54,71 @@ SANS = "Microsoft YaHei"
 MONO = "Consolas"
 
 
+def bundle_root() -> str:
+    """程序自己所在的目录：打包后是 exe 旁边，开发时是工程根目录。"""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def bundled_binary() -> str:
+    """随程序一起发的那份 Calibre（免安装，拷过来就能用）。"""
+    root = bundle_root()
+    for sub in ("Calibre", os.path.join("Calibre", "app"), "calibre"):
+        exe = os.path.join(root, sub, "ebook-convert.exe")
+        if os.path.isfile(exe):
+            return exe
+    return ""
+
+
+def is_bundled(exe: str = "") -> bool:
+    exe = exe or binary()
+    if not exe:
+        return False
+    root = os.path.join(bundle_root(), "Calibre")
+    try:
+        return os.path.abspath(exe).lower().startswith(os.path.abspath(root).lower() + os.sep)
+    except ValueError:                       # 不同盘符
+        return False
+
+
+def sub_env() -> dict[str, str]:
+    """跑转换子进程用的环境：内置那份要把配置目录放在自己旁边，
+    不然它会去写用户的 AppData，换台机器就带不走。"""
+    env = os.environ.copy()
+    exe = binary()
+    if exe and is_bundled(exe):
+        cfg = os.path.join(bundle_root(), "Calibre", "config")
+        try:
+            os.makedirs(cfg, exist_ok=True)
+            env["CALIBRE_CONFIG_DIRECTORY"] = cfg
+            env["CALIBRE_TEMP_DIR"] = os.path.join(cfg, "tmp")
+            os.makedirs(env["CALIBRE_TEMP_DIR"], exist_ok=True)
+        except OSError:
+            pass
+    return env
+
+
+def engine_label() -> str:
+    exe = binary()
+    if not exe:
+        return ""
+    return ("转换引擎已就绪：内置 Calibre（不用另装）" if is_bundled(exe)
+            else "转换引擎已就绪：Calibre")
+
+
 def binary() -> str:
     """找 Calibre 的 ebook-convert。
 
-    Windows 上它不在 PATH 里，装在 Program Files 下，而且装完要重开程序才进 PATH，
-    所以这里把常见安装位置也挨个探一遍。
+    顺序：环境变量指定 → 程序自带的那份 → PATH → 常见安装目录。
+    Windows 上别处的 Calibre 不在 PATH 里，装完还得重开程序，所以整条链路都探一遍。
     """
+    forced = os.environ.get("BOOKTOOL_CALIBRE", "")
+    if forced and os.path.isfile(forced):
+        return forced
+    local = bundled_binary()
+    if local:
+        return local
     hit = shutil.which("ebook-convert") or shutil.which("ebook-convert.exe")
     if hit:
         return hit
@@ -202,6 +262,8 @@ def convert(
 
     proc = subprocess.Popen(
         args,
+        env=sub_env(),
+        cwd=os.path.dirname(target) or None,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -275,7 +337,7 @@ def cover_image(path: str, out_dir: str = "") -> str:
     if os.path.exists(out) and os.path.getsize(out) > 0:
         return out
     try:
-        proc = subprocess.run([meta, path, "--get-cover", out],
+        proc = subprocess.run([meta, path, "--get-cover", out], env=sub_env(),
                               capture_output=True, timeout=60)
     except Exception:                                    # noqa: BLE001
         return ""

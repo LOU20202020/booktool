@@ -1,6 +1,28 @@
 """回归自测：每次改完代码都必须跑一遍。
 
 用法：python tests/regression.py
+print("
+=== 内置转换引擎：查找顺序 ===")
+import tempfile as _tf
+from core import convert as _C
+
+_real_root = _C.bundle_root
+_tmp = _tf.mkdtemp()
+os.makedirs(os.path.join(_tmp, "Calibre"), exist_ok=True)
+with open(os.path.join(_tmp, "Calibre", "ebook-convert.exe"), "w") as _fh:
+    _fh.write("")
+_C.bundle_root = lambda: _tmp                      # 假装程序装在这个目录
+check(_C.bundled_binary().endswith("ebook-convert.exe"), "exe 旁边有 Calibre 就先用它",
+      _C.bundled_binary())
+check(_C.is_bundled(), "认得出这是自带的那份")
+check("内置" in _C.engine_label(), "界面上写「内置 Calibre」", _C.engine_label())
+check(_C.sub_env().get("CALIBRE_CONFIG_DIRECTORY", "").startswith(_tmp),
+      "配置目录跟着程序走（换台机器也带得走）",
+      _C.sub_env().get("CALIBRE_CONFIG_DIRECTORY", "")[:60])
+os.remove(os.path.join(_tmp, "Calibre", "ebook-convert.exe"))
+check(_C.bundled_binary() == "", "没有自带的那份就退回探本机安装")
+_C.bundle_root = _real_root
+
 全部通过退出码 0，失败退出码 1。
 """
 from __future__ import annotations

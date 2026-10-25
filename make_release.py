@@ -14,7 +14,7 @@ DIST = os.path.join(ROOT, "dist", "书籍制作工具")
 REL = os.path.join(ROOT, "release")
 PKG = os.path.join(ROOT, "packaging")
 APP = "书籍制作工具"
-VER = "1.1.9"
+VER = "1.2.0"
 
 FIRST_RUN = """{app} {ver}（免安装版）
 
@@ -26,7 +26,8 @@ FIRST_RUN = """{app} {ver}（免安装版）
 4. 想放桌面：右键 exe → 发送到 → 桌面快捷方式
 
 注意：
-· 不要把 exe 单独拖出来，_internal 文件夹是运行库，必须跟它在一起
+· 不要把 exe 单独拖出来，_internal 和 Calibre 两个文件夹必须跟它在一起
+· 格式转换引擎（Calibre）已经打包在里面，不用另装
 · 删掉整个文件夹就是卸载，不写注册表、不留残留
 · 全程本地运行，文件不上传
 
@@ -55,7 +56,12 @@ def main() -> int:
         os.remove(zip_path)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         for base, _dirs, files in os.walk(REL):
+            # 内置引擎跑过之后会生成自己的配置目录，不进发布包
+            if os.path.join("Calibre", "config") in base:
+                continue
             for f in files:
+                if f == "engine.json":
+                    continue
                 full = os.path.join(base, f)
                 z.write(full, os.path.relpath(full, REL))
 

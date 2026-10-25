@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 
@@ -32,6 +33,16 @@ def main() -> int:
         print("   python tools/fetch_print_engine.py")
         return 1
 
+    # 转换引擎（Calibre 精简版，GPLv3 独立程序，不进仓库）
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    try:
+        from fetch_convert_engine import ensure as ensure_engine
+        engine_exe = ensure_engine()
+    except SystemExit as exc:
+        print(f"❌ 转换引擎缺失：{exc}")
+        print("   先跑一次：python tools/fetch_convert_engine.py")
+        return 1
+
     if not run("内核回归", "tests/regression.py"):
         return 1
     if not run("界面冒烟", "tests/ui_smoke.py"):
@@ -51,6 +62,20 @@ def main() -> int:
         return code
 
     out = os.path.join(ROOT, "dist", "书籍制作工具")
+
+    # 把精简 Calibre 放到 exe 旁边（与 _internal 同级）：整个文件夹拷走就能用，
+    # 换台没装 Calibre 的电脑也能直接转换
+    dst = os.path.join(out, "Calibre")
+    print(f"\n=== 内置转换引擎 → {dst} ===")
+    if os.path.isdir(dst):
+        shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(os.path.dirname(engine_exe), dst,
+                    ignore=shutil.ignore_patterns("config", "engine.json"),
+                    dirs_exist_ok=True)
+    size_mb = sum(os.path.getsize(os.path.join(b, f))
+                  for b, _d, fs in os.walk(dst) for f in fs) / 1048576
+    print(f"   已放入 Calibre：{size_mb:.0f} MB")
+
     print(f"\n✅ 构建完成：{out}")
     return 0
 

@@ -344,7 +344,7 @@ class ConvertPage(QWidget):
         """把「Calibre 装没装」直接写在源文件卡里。"""
         if C.available():
             self.calibre_hint.setObjectName("Hint")
-            self.calibre_hint.setText("转换引擎已就绪：Calibre")
+            self.calibre_hint.setText(C.engine_label())
             self.calibre_hint.setStyleSheet(f"color:{INK3};font-size:11px;")
         else:
             self.calibre_hint.setObjectName("Hint")
