@@ -34,6 +34,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pymupdf as fitz
+from PIL import Image
+
 from core import cover as cover_core
 from core import pdfops
 
@@ -254,6 +256,52 @@ def main() -> int:
         w_mm = (148 * 2 + 10.6 + 6) * 72 / 25.4
         check(f"封面模板 {tpl} 能渲染", abs(img.width - w_mm) < 4 and img.height > 500,
               f"{img.size}")
+
+    # ---------------- 页边距：填多少，纸上离边多少（不能再靠"看着还行"） ----------------
+    MMv = 72 / 25.4
+
+    def _solid(name, wmm, hmm, pages=8):
+        path = os.path.join(TMP, name)
+        doc = fitz.open()
+        for _ in range(pages):
+            pg = doc.new_page(width=wmm * MMv, height=hmm * MMv)
+            pg.draw_rect(pg.rect, color=None, fill=(0.2, 0.35, 0.6))
+        doc.save(path)
+        doc.close()
+        return path
+
+    a5 = _solid("margin_a5.pdf", 148, 210)
+    a6 = _solid("margin_a6.pdf", 105, 148)
+    def _ink_mm(pdf, page_no=0, dpi=72):
+        doc = fitz.open(pdf)
+        pix = doc[page_no].get_pixmap(dpi=dpi)
+        doc.close()
+        img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+        w, h = img.size
+        px = img.load()
+        xs, ys = [], []
+        for y in range(h):
+            for x in range(w):
+                r, g, b = px[x, y]
+                if not (r > 240 and g > 240 and b > 240):
+                    xs.append(x)
+                    ys.append(y)
+        k = dpi / 25.4
+        return min(xs) / k, min(ys) / k, max(xs) / k, max(ys) / k
+
+    # 4合1：填 0 不许有隐藏白边（旧版写死 3pt），填 10 左右必须真的 10
+    st = pdfops.impose_fourup(a6, os.path.join(TMP, "reg_4up0.pdf"), "A", 0, 1)
+    x0, y0, x1, y1 = _ink_mm(os.path.join(TMP, "reg_4up0.pdf"))
+    check("4合1 边距 0 时贴边（误差<1mm）", max(x0, y0, 210 - x1, 297 - y1) < 1.0,
+          f"{x0:.1f}/{y0:.1f}/{210 - x1:.1f}/{297 - y1:.1f}")
+    st = pdfops.impose_fourup(a6, os.path.join(TMP, "reg_4up10.pdf"), "A", 10, 1)
+    x0, y0, x1, y1 = _ink_mm(os.path.join(TMP, "reg_4up10.pdf"))
+    m = st["margins_mm"]
+    check("4合1 边距 10mm：左右真的 10（±0.6）", abs(x0 - 10) < 0.6 and abs((210 - x1) - 10) < 0.6,
+          f"左{x0:.1f} 右{210 - x1:.1f}")
+    check("4合1 报的实际边距和纸上一致（±0.6）",
+          abs(m["left"] - x0) < 0.6 and abs(m["top"] - y0) < 0.6,
+          f"报{m['top']:.1f}/{m['left']:.1f} 实{y0:.1f}/{x0:.1f}")
 
     # ---------------- 结果 ----------------
     print()

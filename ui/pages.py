@@ -17,6 +17,26 @@ from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComb
 from core import cover as cover_core
 from core import pdfops
 from . import icons, theme
+
+
+def margin_note(st: dict, want: float) -> str:
+    """页面比例和格子比例对不上时，实际边距会比设定值大 —— 别让界面装没事。
+
+    只有偏差超过 0.25mm 才提示，避免 0.1mm 的取整噪声。
+    """
+    m = (st or {}).get("margins_mm")
+    if not m:
+        return ""
+    vals = (m.get("top", 0.0), m.get("bottom", 0.0), m.get("left", 0.0), m.get("right", 0.0))
+    if max(abs(v - want) for v in vals) <= 0.25:
+        return ""
+    up = max(0.0, max(vals[0], vals[1]) - want)
+    side = max(0.0, max(vals[2], vals[3]) - want)
+    if up >= side:
+        return (f" · 实际边距 上/下 {vals[0]:.1f}mm、左/右 {vals[2]:.1f}mm"
+                f"（页面比例固定，套不进 {want:g}mm 的那一边会多一点）")
+    return (f" · 实际边距 左/右 {vals[2]:.1f}mm、上/下 {vals[0]:.1f}mm"
+            f"（页面比例固定，套不进 {want:g}mm 的那一边会多一点）")
 from .widgets import (CANCEL, Card, ChipGroup, Collapsible, FileCard, Hint, ImagePicker,
                       OutlinePanel, PreviewView, SectionLabel, Stepper, ThumbPanel,
                       submit)
@@ -675,7 +695,8 @@ class BookletPage(ToolPage):
         self.preview_caption.setText("第 1 张纸 · 正面")
         self.main.set_status(
             f"完成：{st['signatures']} 帖 / {st['sheets']} 张 "
-            f"{'A6 双份' if st.get('size') == 'A6' else ''} / 空白 {st['blanks']} 页".replace("  /", "/"))
+            f"{'A6 双份' if st.get('size') == 'A6' else ''} / 空白 {st['blanks']} 页".replace("  /", "/")
+            + margin_note(st, self.margin.value()))
         self.main.offer_open(self.out_path)
 
 
@@ -1210,7 +1231,8 @@ class FourStackPage(ToolPage):
         self.preview.show_pdf(self.out_path, 0)
         self.thumbs.load(self.out_path)
         self.set_stats(st["sheets"], st["pages"], st["blanks"])
-        self.main.set_status(f"完成：{st['sheets']} 张 / {st['pages']} 面")
+        self.main.set_status(f"完成：{st['sheets']} 张 / {st['pages']} 面"
+                             + margin_note(st, self.margin.value()))
         self.main.offer_open(self.out_path)
 
 
@@ -1322,78 +1344,7 @@ class FourUpPage(ToolPage):
         self.out_path = st["path"]
         self.preview.show_pdf(self.out_path, 0)
         self.thumbs.load(self.out_path)
-        self.main.set_status(f"完成：{st['sheets']} 张 A4")
-        self.main.offer_open(self.out_path)
-
-
-# ------------------------------------------------------------------ A5→A4
-class A5Page(ToolPage):
-    title = "A5 转 A4"
-    crumb = "书籍制作工具 / 排版"
-    action_text = "开始拼版"
-
-    def build_left(self):
-        self.file = FileCard()
-        self.file.picked.connect(self.file_loaded)
-        self.add_card(self.file)
-
-        c = Card()
-        c.lay.addWidget(SectionLabel("参数"))
-        self.mode = ChipGroup(["等比适应", "等比填满", "拉伸填满"])
-        self.mode.changed.connect(lambda _=0: self._changed())
-        c.lay.addWidget(self.mode)
-        self.rotate = QCheckBox("竖版页面自动旋转 90°")
-        self.rotate.setChecked(True)
-        self.rotate.stateChanged.connect(lambda _=0: self._changed())
-        c.lay.addWidget(self.rotate)
-        self.margin = Stepper(0, 0, 20, 0.5, "mm", 1)
-        self.margin.valueChanged.connect(lambda _=0: self._changed())
-        self.add_row(c.lay, "页边距", self.margin)
-        c.lay.addWidget(Hint("A5 竖版转 90° 正好铺满半张 A4，不浪费纸"))
-        self.add_card(c)
-
-        self.stats_card(("张 A4", "输出面数", "空白格"))
-        self._timer = QTimer(self)
-        self._timer.setSingleShot(True)
-        self._timer.timeout.connect(self.refresh_preview)
-
-    def _changed(self):
-        self._timer.start(400)
-
-    def refresh_preview(self):
-        if not self.is_active() or not self.file.path:
-            return
-        self.note_preview()
-        try:
-            out = os.path.join(TMP, "preview_a5.pdf")
-            st = pdfops.impose_a5a4(self.file.path, out, self.rotate.isChecked(),
-                                    ["contain", "cover", "stretch"][self.mode.index()],
-                                    self.margin.value())
-            self.preview.show_pdf(out, 0)
-            self.set_stats(st["sheets"], st["pages"], st["blanks"])
-            self.preview_caption.setText("第 1 张 · 上半格为前一半页")
-        except Exception as e:
-            self.status(f"预览失败：{e}")
-
-    def run(self):
-        if not self.file.path:
-            return self.status("先选一个 PDF")
-        out = os.path.splitext(self.file.path)[0] + "-A4拼版.pdf"
-        self.main.busy(True)
-        self._job = submit(lambda cb: dict(pdfops.impose_a5a4(
-            self.file.path, out, self.rotate.isChecked(),
-            ["contain", "cover", "stretch"][self.mode.index()],
-            self.margin.value(), progress=cb), path=out),
-            on_progress=self.main.progress,
-            on_done=lambda st: self._done(st), on_fail=self.main.fail)
-
-    def _done(self, st):
-        self.main.busy(False)
-        self.out_path = st["path"]
-        self.preview.show_pdf(self.out_path, 0)
-        self.thumbs.load(self.out_path)
-        self.set_stats(st["sheets"], st["pages"], st["blanks"])
-        self.main.set_status(f"完成：{st['sheets']} 张 / 空白 {st['blanks']} 格")
+        self.main.set_status(f"完成：{st['sheets']} 张 A4" + margin_note(st, self.margin.value()))
         self.main.offer_open(self.out_path)
 
 

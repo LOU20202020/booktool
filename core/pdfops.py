@@ -223,6 +223,8 @@ def impose_booklet(src_path: str, out_path: str, max_sheets: int = 5,
     # 小册子用 A4 横向：对折后每半张正好是 A5（148×210mm = 419.5×595.3pt）
     sheet_w, sheet_h = A4_H, A4_W
     cw = (sheet_w - gutter) / 2
+    _pw, _ph = src[0].rect.width, src[0].rect.height
+    _, m_v, m_h = _fit_margins(cw, sheet_h, _pw, _ph, margin)
 
     for sig in plan:
         for sheet in sig["sheets"]:
@@ -261,7 +263,9 @@ def impose_booklet(src_path: str, out_path: str, max_sheets: int = 5,
     src.close()
     return {"signatures": len(plan), "sheets": sheets_total,
             "pages": pages_total, "blanks": blanks,
-            "groups": [p["count"] for p in plan], "size": book_size}
+            "groups": [p["count"] for p in plan], "size": book_size,
+            "margins_mm": {"top": m_v / MM, "bottom": m_v / MM,
+                           "left": m_h / MM, "right": m_h / MM}}
 
 
 def _draw(dst, src, cell, pno, sig, mode, margin, rotate=0):
@@ -286,6 +290,8 @@ def impose_fourstack(src_path: str, out_path: str, binding: str = "left",
     cells = [fitz.Rect(0, 0, cw, ch), fitz.Rect(cw + gutter, 0, A4_W, ch),
              fitz.Rect(0, ch + gutter, cw, A4_H), fitz.Rect(cw + gutter, ch + gutter, A4_W, A4_H)]
     margin = margin_mm * MM
+    _pw, _ph = src[0].rect.width, src[0].rect.height
+    _, m_v, m_h = _fit_margins(cw, ch, _pw, _ph, margin)
     blanks = 0
     for s in range(sheets):
         chunk = order[s * 8:(s + 1) * 8]
@@ -305,7 +311,23 @@ def impose_fourstack(src_path: str, out_path: str, binding: str = "left",
             progress(s + 1, sheets)
     out.save(out_path, garbage=1, deflate=True)
     out.close(); src.close()
-    return {"sheets": sheets, "pages": sheets * 2, "blanks": blanks}
+    return {"sheets": sheets, "pages": sheets * 2, "blanks": blanks,
+            "margins_mm": {"top": m_v / MM, "bottom": m_v / MM,
+                           "left": m_h / MM, "right": m_h / MM}}
+
+
+def _fit_margins(cw: float, ch: float, pw: float, ph: float, m: float, inset: int = 2):
+    """页面 pw×ph 放进 cw×ch 的格子、四边至少留 m，返回 (缩放, 上下实际边距, 左右实际边距)。
+
+    页面比例和格子比例不会完全一致，所以总有一边多于设定值 —— 这个函数把真实值算出来，
+    界面照实报，别让人以为填 10mm 就真的四面都是 10mm。
+
+    inset：格子被扣了几倍的边距。4合1 是每格只扣一份（1），其余拼版是四边各扣（2）。
+    """
+    aw = max(cw - inset * m, 1.0)
+    ah = max(ch - inset * m, 1.0)
+    s = min(aw / pw, ah / ph)
+    return s, m + (ah - ph * s) / 2, m + (aw - pw * s) / 2
 
 
 def impose_fourup(src_path: str, out_path: str, layout: str = "A",
@@ -325,17 +347,25 @@ def impose_fourup(src_path: str, out_path: str, layout: str = "A",
     out = fitz.open()
     start = max(start_page - 1, 0)
     groups = list(range(start, len(src), 4)) or [start]
+    m_v = m_h = None
     for gi, base in enumerate(groups):
         page = out.new_page(width=A4_W, height=A4_H)
         for slot, off in enumerate(order):
             pno = base + off
             if pno < len(src):
-                place_page(page, src, pno, cells[slot], mode="contain", margin=3)
+                # 边距已经在格子上扣过了，这里不再叠加隐藏边距（原来多扣 3pt，填 0 也贴不到边）
+                place_page(page, src, pno, cells[slot], mode="contain", margin=0)
+                if m_v is None:
+                    pw, ph = src[pno].rect.width, src[pno].rect.height
+                    # 格子已经按边距缩过了，这里要用整格（未扣边距）来算真实距离
+                    _, m_v, m_h = _fit_margins(A4_W / 2, A4_H / 2, pw, ph, margin, inset=1)
         if progress:
             progress(gi + 1, len(groups))
     out.save(out_path, garbage=1, deflate=True)
     out.close(); src.close()
-    return {"sheets": len(groups), "pages": len(groups)}
+    return {"sheets": len(groups), "pages": len(groups),
+            "margins_mm": {"top": (m_v or 0) / MM, "bottom": (m_v or 0) / MM,
+                           "left": (m_h or 0) / MM, "right": (m_h or 0) / MM}}
 
 
 def impose_a5a4(src_path: str, out_path: str, rotate: bool = True,
@@ -348,6 +378,10 @@ def impose_a5a4(src_path: str, out_path: str, rotate: bool = True,
     iterations = max(part1, n - part1)
     margin = margin_mm * MM
     out = fitz.open()
+    pw, ph = src[0].rect.width, src[0].rect.height
+    if rotate:
+        pw, ph = ph, pw
+    _, m_v, m_h = _fit_margins(A4_W, A4_H / 2, pw, ph, margin)
     for i in range(iterations):
         page = out.new_page(width=A4_W, height=A4_H)
         top = fitz.Rect(0, 0, A4_W, A4_H / 2)
@@ -363,7 +397,9 @@ def impose_a5a4(src_path: str, out_path: str, rotate: bool = True,
     out.save(out_path, garbage=1, deflate=True)
     out.close(); src.close()
     return {"sheets": iterations, "pages": iterations,
-            "blanks": iterations * 2 - n}
+            "blanks": iterations * 2 - n,
+            "margins_mm": {"top": m_v / MM, "bottom": m_v / MM,
+                           "left": m_h / MM, "right": m_h / MM}}
 
 
 def add_page_numbers(src_path: str, out_path: str, start: int = 1,

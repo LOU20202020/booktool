@@ -24,7 +24,7 @@ from .shelf_page import ShelfPage
 from .split_page import SplitToolPage
 from .widgets import CANCEL
 
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.2.2"
 
 #: 左侧导航 / 页面顺序（唯一真源）
 #: 书架和生产是工作台入口放最前；打印必须永远是最后一个（show_print() 认 pages[-1]）。
