@@ -303,6 +303,63 @@ def main() -> int:
           abs(m["left"] - x0) < 0.6 and abs(m["top"] - y0) < 0.6,
           f"报{m['top']:.1f}/{m['left']:.1f} 实{y0:.1f}/{x0:.1f}")
 
+    # 跨页大图拼版：中线处不许有缝（粉丝反馈的那条规则）
+    def _white_mm_at(pdf, x_mm, y_mm, dpi=100):
+        """在中线附近量最长的连续白边，跨过中线就算有缝。"""
+        doc = fitz.open(pdf)
+        pix = doc[0].get_pixmap(dpi=dpi)
+        doc.close()
+        img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+        w, h = img.size
+        px = img.load()
+        k = dpi / 25.4
+        cx, cy = int(x_mm * k), int(y_mm * k)
+
+        def white(x, y):
+            return px[x, y][0] > 240 and px[x, y][1] > 240 and px[x, y][2] > 240
+
+        # 沿中线上下各扫 10mm，看是否被白边穿过
+        best = 0
+        y = max(0, cy - int(10 * k))
+        while y < min(h, cy + int(10 * k)):
+            length = 0
+            while y < min(h, cy + int(10 * k)) and white(cx, y):
+                length += 1
+                y += 1
+            best = max(best, length)
+            y += 1
+        vert = best / k
+
+        best = 0
+        x = max(0, cx - int(10 * k))
+        while x < min(w, cx + int(10 * k)):
+            length = 0
+            while x < min(w, cx + int(10 * k)) and white(x, cy):
+                length += 1
+                x += 1
+            best = max(best, length)
+            x += 1
+        return vert, best / k
+
+    spread = os.path.join(TMP, "spread.pdf")
+    sd = fitz.open()
+    for _ in range(8):
+        sp = sd.new_page(width=297 * MMv, height=210 * MMv)
+        sp.draw_rect(sp.rect, color=None, fill=(0.25, 0.4, 0.6))
+    sd.save(spread)
+    sd.close()
+
+    out_sp = os.path.join(TMP, "spread_4up.pdf")
+    pdfops.impose_fourup(spread, out_sp, "A", 0, 1)
+    v_gap, h_gap = _white_mm_at(out_sp, 105, 148.5)
+    check("4合1 跨页稿：竖直中线不留缝（<1mm）", v_gap < 1.0, f"{v_gap:.1f}mm")
+    check("4合1 跨页稿：水平中线不留缝（<1mm）", h_gap < 1.0, f"{h_gap:.1f}mm")
+
+    out_bk = os.path.join(TMP, "spread_bk.pdf")
+    pdfops.impose_booklet(spread, out_bk, 2, "left", False, "contain", 0, 0, 1, "A5")
+    v_gap, h_gap = _white_mm_at(out_bk, 148.5, 105, dpi=100)   # 对折线在纸中间
+    check("小册子 跨页稿：对折线不留缝（<1mm）", h_gap < 1.0, f"{h_gap:.1f}mm")
+
     # ---------------- 结果 ----------------
     print()
     if FAILS:

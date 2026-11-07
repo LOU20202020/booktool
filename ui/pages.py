@@ -22,21 +22,20 @@ from . import icons, theme
 def margin_note(st: dict, want: float) -> str:
     """页面比例和格子比例对不上时，实际边距会比设定值大 —— 别让界面装没事。
 
-    只有偏差超过 0.25mm 才提示，避免 0.1mm 的取整噪声。
+    现在内边贴中线、余量全留在外口，所以四边本来就不等距：这里报外口 + 中缝。
     """
     m = (st or {}).get("margins_mm")
     if not m:
         return ""
+    if "outer_v" in m and "outer_h" in m:
+        if max(m["outer_v"], m["outer_h"]) - want <= 0.25:
+            return ""
+        return (f" · 外口 上/下 {m['outer_v']:.1f}mm、左/右 {m['outer_h']:.1f}mm，"
+                f"中缝每边 {m['inner']:.1f}mm（页面比例不合，余量都留给外口裁掉）")
     vals = (m.get("top", 0.0), m.get("bottom", 0.0), m.get("left", 0.0), m.get("right", 0.0))
     if max(abs(v - want) for v in vals) <= 0.25:
         return ""
-    up = max(0.0, max(vals[0], vals[1]) - want)
-    side = max(0.0, max(vals[2], vals[3]) - want)
-    if up >= side:
-        return (f" · 实际边距 上/下 {vals[0]:.1f}mm、左/右 {vals[2]:.1f}mm"
-                f"（页面比例固定，套不进 {want:g}mm 的那一边会多一点）")
-    return (f" · 实际边距 左/右 {vals[2]:.1f}mm、上/下 {vals[0]:.1f}mm"
-            f"（页面比例固定，套不进 {want:g}mm 的那一边会多一点）")
+    return (f" · 实际边距 上/下 {max(vals[0], vals[1]):.1f}mm、左/右 {max(vals[2], vals[3]):.1f}mm")
 from .widgets import (CANCEL, Card, ChipGroup, Collapsible, FileCard, Hint, ImagePicker,
                       OutlinePanel, PreviewView, SectionLabel, Stepper, ThumbPanel,
                       submit)
