@@ -30,12 +30,11 @@ APP = QApplication([])
 MM = 72 / 25.4
 FAIL = []
 
+from _check import Checker
 
-def check(cond, what, extra=""):
-    print(("  ✔ " if cond else "  ✘ ") + what + (f"  {extra}" if extra else ""))
-    if not cond:
-        FAIL.append(what)
-    return cond
+_C = Checker()
+check = _C.check_compact
+FAIL = _C.failures
 
 
 def make_book(folder, name="忍者物语 第01卷", pages=40):
@@ -466,5 +465,4 @@ else:
     check(settled, "没封面的书：不会一直停在「正在读取封面」",
           "合成封面" if cv.preview.item is not None else cv.placeholder.text()[:30])
 
-print("\n" + ("全部通过" if not FAIL else f"失败 {len(FAIL)} 项：" + "；".join(FAIL)))
-sys.exit(1 if FAIL else 0)
+sys.exit(_C.finish("全部通过", fail_template="失败 {n} 项：{names}", sep="；"))

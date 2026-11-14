@@ -16,13 +16,11 @@ from PySide6.QtWidgets import QApplication
 from ui.app import MainWindow
 
 TMP = tempfile.mkdtemp(prefix="booktool_ui_")
-FAILS: list[str] = []
+from _check import Checker
 
-
-def check(name, cond, detail=""):
-    print(("PASS  " if cond else "FAIL  ") + name + ("" if cond else f"   [{detail}]"))
-    if not cond:
-        FAILS.append(name)
+_C = Checker()
+check = _C.check
+FAILS = _C.failures
 
 
 def pump(app, seconds=0.6):
@@ -161,12 +159,7 @@ def main() -> int:
           pp.note.text())
 
     w.close()
-    print()
-    if FAILS:
-        print(f"❌ {len(FAILS)} 项失败：" + "、".join(FAILS))
-        return 1
-    print("✅ 界面全部通过")
-    return 0
+    return _C.finish("✅ 界面全部通过")
 
 
 if __name__ == "__main__":
