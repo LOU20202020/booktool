@@ -350,7 +350,7 @@ class ConvertPage(QWidget):
             self.calibre_hint.setObjectName("Hint")
             self.calibre_hint.setText(
                 "还没装 Calibre。转换用的是它的免费命令行工具 ebook-convert："
-                "去 calibre-ebook.com 下载安装（默认装到 Program Files\Calibre2），"
+                "去 calibre-ebook.com 下载安装（默认装到 Program Files\\Calibre2），"
                 "装完重开本程序，这里会显示「已就绪」。")
             self.calibre_hint.setStyleSheet(f"color:{RED};font-size:11px;")
 
