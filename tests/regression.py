@@ -214,7 +214,12 @@ def main() -> int:
     t0 = _t.time()
     pdfops.add_page_numbers(big, os.path.join(TMP, "big300_num.pdf"))
     dt = _t.time() - t0
-    check(f"300 页加页码 {dt:.2f}s（<6s）", dt < 6.0)
+    # 这条盯的是"别退回慢实现"（PyMuPDF 版 0.1s 级，老的 pypdf 版 10s 级），
+    # 但绝对秒数也吃机器：慢机器 / 换了 Python 小版本都会误报。
+    # 默认仍卡 6s；需要时用 BOOKTOOL_PERF_BUDGET=15 覆盖，
+    # 别为了让这条变绿去改实现。
+    budget = float(os.environ.get("BOOKTOOL_PERF_BUDGET", "6.0"))
+    check(f"300 页加页码 {dt:.2f}s（<{budget:g}s）", dt < budget)
 
     # ---------------- 辅助线不许进成品 ----------------
     from PIL import ImageChops
