@@ -1,0 +1,49 @@
+name: tests
+
+# 只跑「在任何机器上结果都一样」的两条：
+#   - tests/regression.py     内核：页序、张数、补白、A6、4合1、分拆、加页码、封面尺寸
+#   - tests/test_new_pages.py 新页：书架导入 / 生产线状态 / 分割 / 封面联动
+#
+# 故意不跑的两个，原因写在下面，避免以后有人以为是漏了：
+#   - tests/ui_smoke.py    需要真打印机 + assets/print/SumatraPDF.exe（GPLv3 独立程序，
+#                          按设计不进仓库），CI 机器上两者都没有
+#   - tests/real_books.py  要和「已验收输出」逐像素对拍，依赖本机的真实书稿，仓库里没有
+# 这两条仍然属于本地验收的一部分（见 AGENTS.md 的「完成标准」）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: 内核回归 + 新页端到端
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      # Qt 在没有桌面的 runner 上要显式走 offscreen，否则 QApplication 直接失败
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: 装依赖
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: 内核回归
+        run: python tests/regression.py
+
+      - name: 新页端到端
+        run: python tests/test_new_pages.py

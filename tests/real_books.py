@@ -17,7 +17,11 @@ from core import pdfops
 BOOK = os.path.expanduser("~/java-course/book/out")
 OLD = os.path.join(BOOK, "小册子-20面分帖")
 TMP = tempfile.mkdtemp(prefix="booktool_real_")
-FAILS: list[str] = []
+from _check import Checker
+
+_C = Checker()
+check = _C.check
+FAILS = _C.failures
 
 VOLS = [
     ("第①册-认 Java(上).pdf", "第①册-认Java(上)-20面分帖-A4双面.pdf", 102),
@@ -25,12 +29,6 @@ VOLS = [
     ("第③册-模组(上).pdf", "第③册-模组(上)-20面分帖-A4双面.pdf", 130),
     ("第④册-模组(下).pdf", "第④册-模组(下)-20面分帖-A4双面.pdf", 136),
 ]
-
-
-def check(name, cond, detail=""):
-    print(("PASS  " if cond else "FAIL  ") + name + ("" if cond else f"   [{detail}]"))
-    if not cond:
-        FAILS.append(name)
 
 
 def diff_pages(a_path, b_path, page, dpi=72):
@@ -75,12 +73,7 @@ def main() -> int:
         check(f"{src_name} 首页与已验收文件一致（差 {d0:.1f}/{d1:.1f}）", d0 < 6 and d1 < 6,
               f"{d0:.1f} {d1:.1f}")
 
-    print()
-    if FAILS:
-        print(f"❌ {len(FAILS)} 项失败：" + "、".join(FAILS))
-        return 1
-    print("✅ 真实书稿全部通过")
-    return 0
+    return _C.finish("✅ 真实书稿全部通过")
 
 
 if __name__ == "__main__":

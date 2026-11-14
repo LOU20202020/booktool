@@ -40,13 +40,11 @@ from core import cover as cover_core
 from core import pdfops
 
 TMP = tempfile.mkdtemp(prefix="booktool_test_")
-FAILS: list[str] = []
+from _check import Checker
 
-
-def check(name: str, cond: bool, detail: str = ""):
-    print(("PASS  " if cond else "FAIL  ") + name + ("" if cond else f"   [{detail}]"))
-    if not cond:
-        FAILS.append(name)
+_C = Checker()
+check = _C.check
+FAILS = _C.failures
 
 
 def make_pdf(name: str, pages: int, w=419.53, h=595.28, label=True) -> str:
@@ -361,12 +359,7 @@ def main() -> int:
     check("小册子 跨页稿：对折线不留缝（<1mm）", h_gap < 1.0, f"{h_gap:.1f}mm")
 
     # ---------------- 结果 ----------------
-    print()
-    if FAILS:
-        print(f"❌ {len(FAILS)} 项失败：" + "、".join(FAILS))
-        return 1
-    print("✅ 全部通过")
-    return 0
+    return _C.finish("✅ 全部通过")
 
 
 if __name__ == "__main__":
