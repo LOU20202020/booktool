@@ -22,6 +22,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: 静态检查（ruff）
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # 版本写死：规则集随版本变，不锁的话某天会突然红一片
+      - name: 装 ruff
+        run: python -m pip install --upgrade pip ruff==0.17.5
+
+      # 只跑 ruff.toml 里开的那几类（E9/F/W605）；不开风格规则，见 ruff.toml 的注释
+      - name: ruff
+        run: python -m ruff check .
+
   core:
     name: 内核回归 + 新页端到端
     runs-on: windows-latest
@@ -47,3 +68,7 @@ jobs:
 
       - name: 新页端到端
         run: python tests/test_new_pages.py
+
+      # 自绘的东西必须真画出像素：paint() 里的异常会被 Qt 吞掉，页面照样能开
+      - name: 渲染自测
+        run: python tests/ui_render.py
