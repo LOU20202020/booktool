@@ -475,7 +475,11 @@ def add_page_numbers(src_path: str, out_path: str, start: int = 1,
         text = fmt.replace("{n}", str(num)).replace("{total}", str(last_no))
         if not text:
             continue
-        w = fitz.get_text_length(text, fontname="china-s", fontsize=font_size)
+        # 纯 ASCII 的页码（"15" / "- 15 -"）走拉丁字体：china-s 是 CJK 字体，
+        # 在 pymupdf 1.24 上会把数字排成全宽，"15" 实际画成 "1 5"（两位以上肉眼可见，
+        # 文本层也提取成 "1 5"）。含中文的格式（"第 15 页"）才需要 china-s。
+        font = "helv" if text.isascii() else "china-s"
+        w = fitz.get_text_length(text, fontname=font, fontsize=font_size)
         r = page.rect
         odd = ((i - skip) % 2 == 0)          # 第一页算奇数页
 
@@ -490,7 +494,7 @@ def add_page_numbers(src_path: str, out_path: str, start: int = 1,
             y = (margin + font_size) if pos.startswith("top") else (r.height - margin)
 
         try:
-            page.insert_text((x, y), text, fontname="china-s",
+            page.insert_text((x, y), text, fontname=font,
                              fontsize=font_size, color=color, overlay=True)
             added += 1
         except Exception:
