@@ -24,16 +24,19 @@ Windows 上的本地 PDF 印刷拼版桌面程序（PySide6）：把 PDF 排成�
 
 ## 完成标准（硬门槛）
 
-改完代码必须**下面三条全绿**才算完成 —— `build.py` 就是照这三条卡打包的：
+改完代码必须**下面几条全绿**才算完成 —— `build.py` 卡前三条，`ruff` 与 `ui_render` 由 CI 卡：
 
+0. `python -m ruff check .`　静态检查（规则见 `ruff.toml`：只开 E9/F/W605，不开风格）
 1. `python tests/regression.py`　内核：页序、张数、补白、A6、4合1、分拆、加页码、封面尺寸
 2. `python tests/ui_smoke.py`　界面：十二页能开、文件共享、真出文件
 3. `python tests/test_new_pages.py`　书架导入 / 生产线状态 / 分割出三个文件 / 封面联动
+4. `python tests/ui_render.py`　渲染：自绘控件真画出像素、paint 期间无异常
 
 补充：
 
 - 动了拼版内核（`core/pdfops.py`、`core/printplan.py`），**还要跑** `tests/real_books.py` 做逐像素对拍
 - `tests/test_core.py`、`tests/test_ui.py`、`tests/test_run.py` 是临时探针，不是门禁
+- **「页面能打开」不等于「画得对」**：Qt 会吞掉 `paint()` 里的异常，页面照开、测试照绿、屏幕空白。改自绘代码必须跑 `ui_render`
 - 不要用"看起来对"收尾；测试没跑就别说完成
 
 ## 架构约束
@@ -68,10 +71,31 @@ Windows 上的本地 PDF 印刷拼版桌面程序（PySide6）：把 PDF 排成�
 - 不要把 `assets/print/SumatraPDF.exe`、`Calibre/` 目录提交进仓库
 - 不要 `git push`、打 tag、改 LICENSE，除非明确要求
 
+## ui/ 文件地图（已经拆过一轮，别再往一个文件里堆）
+
+| 文件 | 放什么 |
+|---|---|
+| `ui/app.py` | `MainWindow`：页面栈、状态栏、文件交接、拖放。窗口自己的事 |
+| `ui/app_print.py` | 打印流程（`show_print` / `start_print` / `_pdf_page_count`），作为 `PrintFlow` mixin 挂在 `MainWindow` 上 |
+| `ui/pages.py` | 30 行的汇总导出（shim），老的 `from ui.pages import BookletPage` 路径仍然有效 |
+| `ui/page_base.py` | `ToolPage` 基类、`margin_note` 边距提示、`TMP` 临时目录 |
+| `ui/pages_impose.py` | 拼版三页：小册子 / 四堆叠 / 4合1 |
+| `ui/pages_pdf.py` | PDF 三页：合并 / 分拆 / 加页码 |
+| `ui/cover_page.py` | 封面页（最长的一页，单独放） |
+| `ui/pipeline_page.py` | 生产线页：工序逻辑、右侧面板、节点布局 |
+| `ui/pipeline_canvas.py` | 生产线的自绘原语：`_NodeItem` / `_Canvas` / `_edge` + 几何常量 + `STATE_STYLE` |
+| `ui/widgets.py` | 公共控件（`Card` / `ChipGroup` / `Hint` / `PreviewView` / `ImagePicker` / `SectionLabel`…） |
+| `ui/theme.py`、`ui/ui_kit.py`、`ui/icons.py` | 配色 / 控件样式 / 图标 |
+
+两个已经踩过的坑：
+
+- **类名不能改**：`core/shelf/model.py` 把页面类名当 `params` 的 key 写进 `shelf.json`，`cover_link.py` 按 `type(p).__name__ == "CoverPage"` 找页面
+- **别从 shim 里再导出**：`ui.pages` 曾转发 `SectionLabel`，被 ruff 的 F401 当成"没用到的导入"删掉，三个模块立刻导入失败。要转发就用 `from x import y as y`
+
 ## 体量提示
 
-`ui/pages.py`（1854 行）、`ui/app.py`（887 行）、`ui/pipeline_page.py`（813 行）已经很大。
-动这三处时先说出打算改哪些函数，再动手；能往 `ui/widgets.py` 抽的就抽。
+`ui/app.py`（778 行）、`ui/pipeline_page.py`（646 行）仍然偏大。
+动它们时先说出打算改哪些函数，再动手；能往 `ui/widgets.py` 或新的 `ui/app_*.py` 抽的就抽。
 
 ## 给我（agent）的额外偏好
 
