@@ -61,7 +61,7 @@ HELP_HTML = """
 <p><b>一次做好几本？</b> 小册子页点「批量：整个文件夹…」，按当前参数逐个拼。</p>
 <p><b>中途想停？</b> 处理时点「取消」，已完成的文件不会删。</p>
 <p><b>出错了怎么办？</b> 弹窗里有日志路径，把日志发我即可：
-<code>%LOCALAPPDATA%\XPlus\BookTool\logs\app.log</code></p>
+<code>%LOCALAPPDATA%\\XPlus\\BookTool\\logs\\app.log</code></p>
 
 <h3>直接打印</h3>
 <p>生成结果后，底部会出现 <b>「打印」</b>：点它不会弹小窗，而是<b>带着这份成品跳到「打印」页</b>，
