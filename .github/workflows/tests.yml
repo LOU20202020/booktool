@@ -31,9 +31,9 @@ jobs:
       # Qt 在没有桌面的 runner 上要显式走 offscreen，否则 QApplication 直接失败
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
