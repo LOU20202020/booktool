@@ -11,10 +11,24 @@ from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsScene,
 from ui.theme import INK
 from ui.preview_kit import GridCanvas
 
+from core.shelf.model import (
+    ST_BLOCKED, ST_DONE, ST_SKIP, ST_STALE, ST_TODO, STEP_NAMES,
+)
+
 NODE_W, NODE_H = 150, 90
 X0, PITCH, ROW_Y = 4, 168, 108
 COVER_X, COVER_Y = 4 + PITCH, 0
 NODE_LABEL = {1: "导入", 2: "分割", 3: "封面", 4: "页码", 5: "排版", 6: "打印", 7: "定稿"}
+
+# 只用原程序的调色板：墨 #1E1B18、朱红 #B23A2E、米白 #FCFAF5、灰 #7E7568
+# 节点的状态配色跟着节点走，所以和 paint() 一起放在这边；页面从这儿 import。
+STATE_STYLE = {
+    ST_DONE:    ("#1E1B18", "#F3EEE4", "#1E1B18", "完成"),
+    ST_STALE:   ("#B23A2E", "#FFF3F1", "#B23A2E", "需重跑"),
+    ST_TODO:    ("#DCD3C4", "#FCFAF5", "#7E7568", "待做"),
+    ST_SKIP:    ("#C6BCAA", "#F4F1EA", "#7E7568", "跳过"),
+    ST_BLOCKED: ("#DCD3C4", "#FCFAF5", "#7E7568", "缺输入"),
+}
 
 
 class _NodeItem(QGraphicsItem):

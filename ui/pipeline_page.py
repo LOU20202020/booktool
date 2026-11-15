@@ -53,7 +53,7 @@ from core.shelf.model import (
 from core.shelf.store import ShelfStore
 
 from ui.pipeline_canvas import (
-    COVER_X, COVER_Y, NODE_H, NODE_LABEL, NODE_W, PITCH, ROW_Y, X0,
+    COVER_X, COVER_Y, NODE_H, NODE_LABEL, NODE_W, PITCH, ROW_Y, STATE_STYLE, X0,
     _Canvas, _NodeItem, _edge,
 )
 
@@ -62,13 +62,7 @@ MAIN_ROW = (STEP_IMPORT, STEP_SPLIT, STEP_PAGER, STEP_LAYOUT, STEP_PRINT, STEP_F
 
 
 # 只用原程序的调色板：墨 #1E1B18、朱红 #B23A2E、米白 #FCFAF5、灰 #7E7568
-STATE_STYLE = {
-    ST_DONE:    ("#1E1B18", "#F3EEE4", "#1E1B18", "完成"),
-    ST_STALE:   ("#B23A2E", "#FFF3F1", "#B23A2E", "需重跑"),
-    ST_TODO:    ("#DCD3C4", "#FCFAF5", "#7E7568", "待做"),
-    ST_SKIP:    ("#C6BCAA", "#F4F1EA", "#7E7568", "跳过"),
-    ST_BLOCKED: ("#DCD3C4", "#FCFAF5", "#7E7568", "缺输入"),
-}
+# （节点状态配色 STATE_STYLE 跟着节点走，放在 ui/pipeline_canvas.py）
 
 # 每一步对应的原程序页面（类名）
 STEP_PAGE = {
