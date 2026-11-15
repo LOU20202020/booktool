@@ -7,7 +7,7 @@ import tempfile
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 from . import theme
-from .widgets import (CANCEL, Card, ChipGroup, Collapsible, FileCard, Hint, ImagePicker, OutlinePanel, PreviewView, SectionLabel, Stepper, ThumbPanel, submit)
+from .widgets import (Card, Collapsible, Hint, PreviewView, SectionLabel, ThumbPanel)
 
 
 TMP = os.path.join(tempfile.gettempdir(), "booktool")
@@ -30,9 +30,6 @@ def margin_note(st: dict, want: float) -> str:
     if max(abs(v - want) for v in vals) <= 0.25:
         return ""
     return (f" · 实际边距 上/下 {max(vals[0], vals[1]):.1f}mm、左/右 {max(vals[2], vals[3]):.1f}mm")
-from .widgets import (CANCEL, Card, ChipGroup, Collapsible, FileCard, Hint, ImagePicker,
-                      OutlinePanel, PreviewView, SectionLabel, Stepper, ThumbPanel,
-                      submit)
 
 TMP = os.path.join(tempfile.gettempdir(), "booktool")
 
@@ -251,7 +248,6 @@ class ToolPage(QWidget):
         return {}
 
     def save_settings(self, s):
-        from PySide6.QtWidgets import QButtonGroup
         for name, w in self.setting_widgets().items():
             key = f"tool/{self.__class__.__name__}/{name}"
             if isinstance(w, QButtonGroup):
@@ -266,7 +262,6 @@ class ToolPage(QWidget):
                 s.setValue(key, w.index())
 
     def load_settings(self, s):
-        from PySide6.QtWidgets import QButtonGroup
         for name, w in self.setting_widgets().items():
             key = f"tool/{self.__class__.__name__}/{name}"
             val = s.value(key)

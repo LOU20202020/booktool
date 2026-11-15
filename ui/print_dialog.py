@@ -1,7 +1,6 @@
 """打印对话框：按「面」选范围、先看要打哪些页，再送印。"""
 from __future__ import annotations
 
-import os
 import re
 
 import pymupdf as fitz

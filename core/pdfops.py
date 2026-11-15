@@ -6,8 +6,7 @@ from __future__ import annotations
 
 import math
 import os
-from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Sequence
 
 import pymupdf as fitz
 

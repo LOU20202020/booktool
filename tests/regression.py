@@ -87,7 +87,7 @@ def main() -> int:
 
     # ---------------- 小册子 A6 ----------------
     out6 = os.path.join(TMP, "b6.pdf")
-    st6 = pdfops.impose_booklet(src16, out6, max_sheets=5, book_size="A6")
+    pdfops.impose_booklet(src16, out6, max_sheets=5, book_size="A6")
     with fitz.open(out6) as d:
         n6 = len(d)
     check("A6 面数=4（张数减半）", n6 == 4, f"got {n6}")
@@ -119,7 +119,7 @@ def main() -> int:
 
     # ---------------- 分拆 ----------------
     src206 = make_pdf("s206.pdf", 206)
-    from ui import __name__ as _  # noqa: F401  仅确认包可导入
+    import ui  # noqa: F401  仅确认包可导入
     parts = [(0, 68), (69, 137), (138, 205)]
     counts = []
     for k, (a, b) in enumerate(parts):
@@ -140,7 +140,7 @@ def main() -> int:
 
     # ---------------- 加页码 ----------------
     outn = os.path.join(TMP, "num.pdf")
-    stn = pdfops.add_page_numbers(src16, outn, start=1, fmt="{n}", pos="bottom-center",
+    pdfops.add_page_numbers(src16, outn, start=1, fmt="{n}", pos="bottom-center",
                                   font_size=10, margin_mm=12, skip=1)
     check("加页码 跳过封面：首页无页码", nums(outn, 0) == [1] or nums(outn, 0) == [])
     check("加页码 第2页显示 1", 1 in nums(outn, 1), str(nums(outn, 1)))
@@ -273,7 +273,7 @@ def main() -> int:
         doc.close()
         return path
 
-    a5 = _solid("margin_a5.pdf", 148, 210)
+    _solid("margin_a5.pdf", 148, 210)
     a6 = _solid("margin_a6.pdf", 105, 148)
     def _ink_mm(pdf, page_no=0, dpi=72):
         doc = fitz.open(pdf)

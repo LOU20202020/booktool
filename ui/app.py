@@ -489,7 +489,7 @@ class MainWindow(QMainWindow, PrintFlow):
         idx = max(0, self.stack.currentIndex() - 1)
         page = self.pages[idx]
         self.primary.setText(page.action_text)
-        self.set_status(f"已取消" if msg == "已取消" else f"出错：{msg}")
+        self.set_status("已取消" if msg == "已取消" else f"出错：{msg}")
         if msg == "已取消":
             return
         logging.error("任务失败：%s", msg)
@@ -678,7 +678,6 @@ def main():
     cover_btn = os.environ.get("BOOKTOOL_COVER_CHECK")
     if cover_btn:
         cover_out = os.environ.get("BOOKTOOL_COVER_OUT", "")
-        cp = w.pages[w.page_index["cover"]]
 
         def _write_btn(text: str):
             with open(cover_btn, "w", encoding="utf-8") as f:

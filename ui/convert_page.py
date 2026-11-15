@@ -36,9 +36,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.pages import SectionLabel
 from ui.theme import INK, INK2, INK3, RED
-from ui.widgets import Card, ChipGroup, Hint, PreviewView
+from ui.widgets import Card, ChipGroup, Hint, PreviewView, SectionLabel
 
 from core import convert as C
 

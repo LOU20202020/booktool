@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QPushButton, QSpinBox, QTreeWidget, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QPushButton, QTreeWidget, QWidget
 
 from ui.theme import INK, INK2, INK3, LINE, LINE2, RED, RED_SOFT
 from ui.widgets import SectionLabel, Stepper  # noqa: F401  （页面直接用）

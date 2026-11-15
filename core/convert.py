@@ -12,7 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import Callable, Iterable
+from typing import Callable
 
 from core.pdfops import unique_path
 
@@ -337,7 +337,7 @@ def cover_image(path: str, out_dir: str = "") -> str:
     if os.path.exists(out) and os.path.getsize(out) > 0:
         return out
     try:
-        proc = subprocess.run([meta, path, "--get-cover", out], env=sub_env(),
+        subprocess.run([meta, path, "--get-cover", out], env=sub_env(),
                               capture_output=True, timeout=60)
     except Exception:                                    # noqa: BLE001
         return ""

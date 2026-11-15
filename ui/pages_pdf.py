@@ -364,7 +364,6 @@ class SplitPage(ToolPage):
         if not plan:
             return self.main.fail("没有可分的页码范围")
         src = self.file.path
-        base = os.path.splitext(src)[0]
         self.main.busy(True)
         self.status("正在分拆…")
 

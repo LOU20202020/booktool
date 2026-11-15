@@ -1,12 +1,11 @@
 """打印页：把「打印」做成一等公民——选任意 PDF（原稿或成品），预览要打的页，直接送印。"""
 from __future__ import annotations
 
-import os
 
 import pymupdf as fitz
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QWidget)
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import (QComboBox, QLineEdit,
+                               QMessageBox, QPushButton)
 
 from core import printpdf
 from . import theme

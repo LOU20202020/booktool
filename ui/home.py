@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QRectF, QSize, Qt, QUrl, Signal
-from PySide6.QtGui import (QColor, QDesktopServices, QFont, QIcon, QLinearGradient,
-                           QPainter, QPainterPath, QPen, QPixmap)
+from PySide6.QtCore import QRectF, Qt, QUrl, Signal
+from PySide6.QtGui import (QColor, QDesktopServices, QIcon, QPainter, QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QGridLayout,
                                QHBoxLayout, QLabel, QPushButton, QScrollArea,
-                               QSizePolicy, QToolButton, QVBoxLayout, QWidget)
+                               QSizePolicy, QVBoxLayout, QWidget)
 
 from . import icons, theme
 

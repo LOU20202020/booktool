@@ -15,15 +15,13 @@ from __future__ import annotations
 import logging
 import os
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QUrl
+from PySide6.QtCore import QPointF, Qt, QUrl
 from PySide6.QtGui import (
-    QBrush, QColor, QDesktopServices, QFont, QPainter, QPainterPath, QPen, QPixmap,
+    QColor, QDesktopServices, QPainterPath, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
     QGraphicsItem,
     QGraphicsPathItem,
-    QGraphicsScene,
-    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -32,11 +30,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.pages import SectionLabel
 from ui.theme import INK, INK2, INK3, LINE, RED, SURFACE
-from ui.widgets import Card
+from ui.widgets import Card, SectionLabel
 
-from ui.preview_kit import GridCanvas
 from ui.right_rail import RightRail
 
 from ui import cover_link as CL
@@ -46,14 +42,14 @@ from core.shelf import collect as C
 from core.shelf import thumbs as T
 from core.shelf.model import (
     KIND_BODY, KIND_COVER, KIND_COVER_BACK, KIND_COVER_SRC, KIND_LABELS, KIND_PAGED,
-    ST_BLOCKED, ST_DONE, ST_STALE, ST_SKIP, ST_TODO,
+    ST_DONE, ST_STALE, ST_TODO,
     STEP_COVER, STEP_FINAL, STEP_IMPORT, STEP_LAYOUT, STEP_NAMES, STEP_PAGER,
     STEP_PRINT, STEP_SPLIT, STEPS, Project,
 )
 from core.shelf.store import ShelfStore
 
 from ui.pipeline_canvas import (
-    COVER_X, COVER_Y, NODE_H, NODE_LABEL, NODE_W, PITCH, ROW_Y, STATE_STYLE, X0,
+    COVER_X, COVER_Y, NODE_H, NODE_W, PITCH, ROW_Y, STATE_STYLE, X0,
     _Canvas, _NodeItem, _edge,
 )
 

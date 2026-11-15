@@ -301,7 +301,7 @@ class BookletPage(ToolPage):
                     book_size="A6" if self.book_size.index() == 1 else "A5")
 
     def run_batch(self):
-        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        from PySide6.QtWidgets import QMessageBox
         folder = QFileDialog.getExistingDirectory(self, "选择放 PDF 的文件夹")
         if not folder:
             return
@@ -460,7 +460,7 @@ class FourStackPage(ToolPage):
             return
         try:
             out = os.path.join(TMP, "preview_fs.pdf")
-            st = pdfops.impose_fourstack(self.file.path, out,
+            pdfops.impose_fourstack(self.file.path, out,
                                     "left" if self.binding.index() == 0 else "right",
                                     ["contain", "cover", "stretch"][self.mode.currentIndex()],
                                     self.margin.value(), skip=max(0, int(self.start_page.value()) - 1))

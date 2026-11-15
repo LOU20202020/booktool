@@ -19,9 +19,6 @@ from .cover_page import CoverPage
 from .page_base import TMP, ToolPage, margin_note
 from .pages_impose import BookletPage, FourStackPage, FourUpPage
 from .pages_pdf import MergePage, NumberPage, SplitPage
-# 这三个模块历史上是从 ui.pages 拿 SectionLabel 的，继续从这儿导出，免得改它们的 import
-from .widgets import (CANCEL, Card, ChipGroup, Collapsible, FileCard, Hint, ImagePicker,
-                      OutlinePanel, PreviewView, SectionLabel, Stepper, ThumbPanel, submit)
 
 __all__ = [
     "TMP", "ToolPage", "margin_note",

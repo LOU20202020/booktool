@@ -4,7 +4,6 @@
 """
 from __future__ import annotations
 
-import glob
 import os
 import sys
 import tempfile
@@ -62,7 +61,7 @@ def main() -> int:
             print(f"SKIP  {src_name}（文件不在）")
             continue
         out = os.path.join(TMP, "out-" + old_name)
-        st = pdfops.impose_booklet(src, out, max_sheets=5, binding="left")
+        pdfops.impose_booklet(src, out, max_sheets=5, binding="left")
         with fitz.open(out) as d:
             n = len(d)
             w, h = d[0].rect.width, d[0].rect.height

@@ -6,11 +6,10 @@ import os
 import pymupdf as fitz
 from PySide6.QtCore import (QObject, QPoint, QRect, QRunnable, QSize, Qt, QThreadPool,
                             Signal)
-from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QLayout, QAbstractItemView, QFileDialog, QFrame, QGraphicsScene,
                                QGraphicsView, QHBoxLayout, QLabel, QLineEdit,
-                               QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-                               QVBoxLayout, QWidget)
+                               QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget)
 
 from . import theme
 

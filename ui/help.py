@@ -1,5 +1,4 @@
 """帮助窗口：独立白底对话框，避免和暗色主题冲突。"""
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton,
                                QTextBrowser, QVBoxLayout)
 

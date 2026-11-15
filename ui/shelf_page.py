@@ -29,15 +29,13 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from ui.pages import SectionLabel
-from ui.theme import INK, INK2, INK3, LINE, RED, SURFACE
-from ui.widgets import Card, Hint
+from ui.theme import INK, INK2, INK3, LINE
+from ui.widgets import Card, Hint, SectionLabel
 
 from ui import ui_kit as K
 from core.shelf import cleanup as CLEAN
@@ -682,7 +680,6 @@ class ShelfPage(QWidget):
         if dlg.exec() != QDialog.Accepted or not dlg.items:
             self._say("已取消清理")
             return
-        keep_body = dlg.chk_body.isChecked()
         result = CLEAN.delete(p, dlg.items)
         self._save()
         self.refresh()

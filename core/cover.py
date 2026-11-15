@@ -6,7 +6,6 @@
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import pymupdf as fitz
@@ -239,7 +238,7 @@ def render_cover(width_mm: float, height_mm: float, spine_mm: float,
     fx0 = W + B + S
     m = W * 0.085
     tf = FONT_MAP.get(title_font, FONT_PATH)
-    filled = bool(front_img)          # 满图时文字要反白
+    _filled = bool(front_img)         # 满图时文字应反白 —— 现在只算不用，真要反白时接上
 
     # ---------------- 封面 ----------------
     if template == "classic":

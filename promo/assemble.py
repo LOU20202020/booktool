@@ -42,7 +42,7 @@ def run(cmd: list[str], cwd: str | None = None):
 
 
 def ui_filter(extra: str = "") -> str:
-    chain = [f"scale=1814:1080:flags=lanczos", f"pad={W}:{H}:53:0:color={PAPER}",
+    chain = ["scale=1814:1080:flags=lanczos", f"pad={W}:{H}:53:0:color={PAPER}",
              "setsar=1", f"fps={FPS}"]
     if extra:
         chain.insert(0, extra)
@@ -64,8 +64,8 @@ def seg_still(name: str, png: str, seconds: float, zoom_from=1.0, zoom_to=1.10,
     out = os.path.join(CLIPS, f"seg_{name}.mp4")
     frames = int(seconds * FPS)
     if abs(zoom_to - zoom_from) < 1e-6:
-        vf = (f"scale=1814:1080:flags=lanczos,"
-              f"pad=1920:1080:53:0:color=0xF4F1EA,setsar=1,format=yuv420p")
+        vf = ("scale=1814:1080:flags=lanczos,"
+              "pad=1920:1080:53:0:color=0xF4F1EA,setsar=1,format=yuv420p")
         run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
              "-loop", "1", "-framerate", str(FPS), "-i", png,
              "-vf", vf, "-t", f"{seconds:.3f}", "-an",
@@ -153,7 +153,6 @@ def build():
     os.makedirs(OUT, exist_ok=True)
 
     # ---------- 画面段落 ----------
-    title_png = os.path.join(HERE, "assets", "card_title.png")
     outro_png = os.path.join(HERE, "assets", "card_outro.png")
     cover_still = os.path.join(HERE, "assets", "still_cover.png")
     print_still = os.path.join(HERE, "assets", "still_print.png")

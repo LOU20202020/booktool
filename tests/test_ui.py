@@ -4,7 +4,6 @@ os.environ.pop("QT_QPA_PLATFORM", None)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
 from ui.app import MainWindow
 
 app = QApplication(sys.argv)

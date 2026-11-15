@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.theme import INK2, INK3, RED
+from ui.theme import INK2, INK3
 from ui.widgets import Card, Hint
 
 from ui import cover_link as CL

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
 from .model import (
     KIND_A4A4, KIND_BODY, KIND_BOOKLET, KIND_COVER, KIND_COVER_BACK, KIND_COVER_SRC,
@@ -208,7 +207,7 @@ def import_folder(folder: str, read_pages: bool = True) -> list[Project]:
         if not name.lower().endswith(EBOOK_EXT):
             continue
         path = os.path.abspath(os.path.join(folder, name))
-        if f"-" in name and classify(name) != KIND_OTHER:   # 产物不单独建卷
+        if "-" in name and classify(name) != KIND_OTHER:   # 产物不单独建卷
             continue
         out.append(project_from_file(path, read_pages=read_pages))
     return sorted(out, key=lambda p: (p.index if p.index is not None else 10**6, p.name))

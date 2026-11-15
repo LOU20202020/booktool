@@ -15,7 +15,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.environ.setdefault("BOOKTOOL_SETTINGS", "BookToolDemo")
 
-import pymupdf as fitz  # noqa: E402
 from PySide6.QtCore import QEventLoop, QPoint, QSettings, Qt, QTimer  # noqa: E402
 from PySide6.QtGui import QCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
